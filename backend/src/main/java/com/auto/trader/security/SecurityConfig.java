@@ -13,6 +13,8 @@ import com.auto.trader.service.CustomOAuth2UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
+import static org.springframework.security.config.Customizer.withDefaults; // ✅ 추가
+
 @Configuration
 @RequiredArgsConstructor
 @EnableMethodSecurity
@@ -25,9 +27,7 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                    "/", "/login", "/oauth2/**", "/css/**", "/js/**", "/images/**", "/favicon.ico"
-                ).permitAll()
+                .requestMatchers("/", "/login", "/logout", "/oauth2/**", "/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
                 .requestMatchers("/api/users/**", "/api/**").authenticated()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
@@ -45,7 +45,16 @@ public class SecurityConfig {
                     response.sendRedirect("http://localhost:3000/login?error=oauth")
                 )
                 .defaultSuccessUrl("http://localhost:3000/oauth2/redirect", true)
-            );
+            )
+            .logout(logout -> logout
+                .logoutUrl("/logout")
+                .logoutSuccessHandler((request, response, authentication) -> {
+                    System.out.println("✅ 로그아웃 성공");
+                    response.setStatus(HttpServletResponse.SC_OK);
+                })
+                .deleteCookies("JSESSIONID")
+            )
+            .httpBasic(withDefaults()); // ✅ 인식 가능해짐
 
         return http.build();
     }

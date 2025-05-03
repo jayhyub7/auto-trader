@@ -1,7 +1,24 @@
 package com.auto.trader.domain;
 
-import jakarta.persistence.*;
-import lombok.*;
+import java.time.LocalDateTime;
+
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Getter @Setter
@@ -30,11 +47,17 @@ public class User {
     private String picture;      // 프로필 사진 URL    
 
     private String provider; // "google" 등 OAuth 제공자 명
-    
+
     @Column(length = 50)
     private String nickName;
-    
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role; // 기본값은 USER
-}
+
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+} 

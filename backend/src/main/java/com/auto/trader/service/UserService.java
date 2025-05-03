@@ -21,7 +21,7 @@ public class UserService {
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmail(email);
     }
-
+    
     public void deleteByEmail(String email) {
         userRepository.findByEmail(email).ifPresent(userRepository::delete);
     }
@@ -34,4 +34,6 @@ public class UserService {
             })
             .orElseThrow(() -> new RuntimeException("User not found"));
     }
+    
+
 }

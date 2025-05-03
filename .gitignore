@@ -1,22 +1,41 @@
-# 공통
-.env
+# Java
+*.class
+/bin/
+/build/
+target/
+
+# Gradle
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# IDE
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+
+# VSCode
+.vscode/
+
+# OS
 .DS_Store
 Thumbs.db
 
-# 백엔드 (Spring Boot)
-backend/.gradle/
-backend/build/
-backend/out/
-backend/*.iml
-backend/.idea/
+# Node.js / React
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+pnpm-lock.yaml
 
-# 프론트엔드 (React)
-frontend/node_modules/
-frontend/dist/
-frontend/build/
-frontend/.env
-frontend/.next/
+# Archives
+*.zip
+*.tar.gz
+*.rar
 
-# VSCode, IDE
-.vscode/
-*.log
+
+# Secret
+.env
+
