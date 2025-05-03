@@ -1,0 +1,11 @@
+/* 필수: 정중앙 정렬을 위한 기본 높이 설정 */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Tailwind 디렉티브 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

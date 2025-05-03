@@ -1,0 +1,22 @@
+# 공통
+.env
+.DS_Store
+Thumbs.db
+
+# 백엔드 (Spring Boot)
+backend/.gradle/
+backend/build/
+backend/out/
+backend/*.iml
+backend/.idea/
+
+# 프론트엔드 (React)
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.env
+frontend/.next/
+
+# VSCode, IDE
+.vscode/
+*.log
