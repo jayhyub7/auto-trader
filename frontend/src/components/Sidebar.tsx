@@ -1,6 +1,7 @@
 import React from "react";
 import AuthKeyManager from "../pages/AuthKeyManager";
-import CurrentBalance from "../pages/CurrentBalance"; // ⬅️ 현재 잔고 페이지 추가
+import CurrentBalance from "../pages/CurrentBalance"; 
+import PositionManager from "../pages/PositionManager"; 
 
 const Sidebar = ({
   openTab,
@@ -14,7 +15,7 @@ const Sidebar = ({
       <ul className="space-y-2 text-sm">
         <li
           className="hover:text-yellow-400 cursor-pointer"
-          onClick={() => openTab("auth-key", "인증키 관리", <AuthKeyManager />)}
+          onClick={() => openTab("auth-key-manager", "인증키 관리", <AuthKeyManager />)}
         >
           🔐 인증키 관리
         </li>
@@ -24,6 +25,12 @@ const Sidebar = ({
         >
           💰 현재 잔고
         </li>
+        <li
+          className="hover:text-yellow-400 cursor-pointer"
+          onClick={() => openTab("position-manager", "포지션 관리", <PositionManager />)}
+        >
+          💰 포지션 관리
+        </li>        
       </ul>
     </aside>
   );
