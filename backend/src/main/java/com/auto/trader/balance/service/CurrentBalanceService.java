@@ -14,9 +14,11 @@ import com.auto.trader.exchange.ExchangeService;
 import com.auto.trader.repository.ApiKeyRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CurrentBalanceService {
 
     private final ApiKeyRepository apiKeyRepository;
@@ -32,18 +34,24 @@ public class CurrentBalanceService {
                     .findFirst()
                     .orElse(null);
 
+            // ❌ 키가 없거나 인증 안된 경우는 아예 제외
             if (key == null || !key.isValidated()) {
-                result.add(new ExchangeBalanceDto(exchange.name(), false, 0.0, List.of()));
                 continue;
             }
 
             try {
                 ExchangeService service = findService(exchange);
                 List<BalanceDto> balances = service.fetchBalances(key);
-                double total = balances.stream().mapToDouble(BalanceDto::total).sum();
-                result.add(new ExchangeBalanceDto(exchange.name(), true, total, balances));
+                List<BalanceDto> usdtOnly = balances.stream()
+                        .filter(b -> "USDT".equalsIgnoreCase(b.getAsset()))
+                        .toList();
+                double total = usdtOnly.stream()
+                        .mapToDouble(BalanceDto::getTotal)
+                        .sum();
+                result.add(new ExchangeBalanceDto(exchange.name(), true, total, usdtOnly));
             } catch (Exception e) {
-                result.add(new ExchangeBalanceDto(exchange.name(), false, 0.0, List.of()));
+                // 에러 난 경우도 제외
+                log.error("잔고 조회 중 오류 발생 ({}): {}", exchange.name(), e.getMessage());
             }
         }
 
@@ -56,4 +64,4 @@ public class CurrentBalanceService {
                 .findFirst()
                 .orElseThrow();
     }
-}
+} 

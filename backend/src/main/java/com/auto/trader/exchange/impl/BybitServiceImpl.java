@@ -1,18 +1,19 @@
 
 package com.auto.trader.exchange.impl;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
+
 import com.auto.trader.balance.dto.BalanceDto;
 import com.auto.trader.domain.ApiKey;
 import com.auto.trader.domain.Exchange;
 import com.auto.trader.exchange.AbstractExchangeService;
 import com.auto.trader.exchange.ExchangeService;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.stereotype.Service;
-
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
 
 @Service
 public class BybitServiceImpl extends AbstractExchangeService implements ExchangeService {
@@ -41,8 +42,7 @@ public class BybitServiceImpl extends AbstractExchangeService implements Exchang
     public boolean validate(ApiKey key) {
         try {
             String url = BASE_URL + ACCOUNT_PATH + "?accountType=UNIFIED";
-            Map<String, Object> response = getWithHeaders(url, buildHeaders(key, "accountType=UNIFIED")).getBody();
-            System.out.println(response);
+            Map<String, Object> response = getWithHeaders(url, buildHeaders(key, "accountType=UNIFIED")).getBody();           
             return true;
         } catch (Exception e) {
             System.out.println("Bybit validate failed: " + e.getMessage());
@@ -51,17 +51,40 @@ public class BybitServiceImpl extends AbstractExchangeService implements Exchang
     }
 
     protected List<BalanceDto> parseBalances(List<Map<String, Object>> rawBalances) {
-        return rawBalances.stream()
-            .map(b -> {
-                String asset = (String) b.get("coin");
-                double available = Double.parseDouble((String) b.get("available_balance"));
-                double locked = Double.parseDouble((String) b.getOrDefault("locked", "0"));
-                return toBalanceDto(asset, available, locked);
-            })
-            .filter(dto -> dto.getTotal() > 0)
-            .toList();
-    }
+        List<BalanceDto> result = new ArrayList<>();
 
+        for (Map<String, Object> balanceMap : rawBalances) {
+            Object coinObj = balanceMap.get("coin");
+            if (!(coinObj instanceof List<?>)) continue;
+
+            List<?> coins = (List<?>) coinObj;
+            for (Object c : coins) {
+                if (!(c instanceof Map)) continue;
+
+                Map<String, Object> coinMap = (Map<String, Object>) c;
+                String asset = (String) coinMap.get("coin");
+                double available = parseDouble(coinMap.get("walletBalance"));
+                double locked = 0.0;
+                double usdValue = parseDouble(coinMap.get("usdValue"));
+
+                BalanceDto dto = new BalanceDto(asset, available, locked, available, usdValue);
+                if (dto.getTotal() > 0) {
+                    result.add(dto);
+                }
+            }
+        }
+
+        return result;
+    }
+    
+    private double parseDouble(Object value) {
+        try {
+            return value != null ? Double.parseDouble(value.toString()) : 0.0;
+        } catch (NumberFormatException e) {
+            return 0.0;
+        }
+    }
+    
     public HttpHeaders buildHeaders(ApiKey apiKey, String queryString) {
         long timestamp = System.currentTimeMillis();
         String recvWindow = "5000";

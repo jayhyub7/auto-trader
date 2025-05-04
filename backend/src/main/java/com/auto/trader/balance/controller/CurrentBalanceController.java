@@ -1,4 +1,3 @@
-
 package com.auto.trader.balance.controller;
 
 import java.util.List;
@@ -18,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/current-balance")
+@RequestMapping("/api/current-balance") // ✅ 경로 수정
 public class CurrentBalanceController {
 
     private final CurrentBalanceService currentBalanceService;

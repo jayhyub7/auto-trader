@@ -7,6 +7,8 @@ type BalanceItem = {
   available: number;
   locked: number;
   total: number;
+  usdValue: number;
+  krwValue: number;
 };
 
 type ExchangeBalance = {
@@ -52,6 +54,11 @@ const CurrentBalance = () => {
             validated: false,
           };
 
+          // ✅ 0.5 USD 이상만 표시
+          const usdtBalances = data.balances.filter(
+            (b) => b.asset === "USDT" && b.usdValue >= 0.5
+          );
+
           return (
             <div
               key={exchange}
@@ -70,7 +77,7 @@ const CurrentBalance = () => {
                 </span>
               </div>
 
-              {data.balances.length > 0 ? (
+              {usdtBalances.length > 0 ? (
                 <table className="w-full text-sm text-left">
                   <thead>
                     <tr className="text-gray-400 border-b border-gray-600">
@@ -81,7 +88,7 @@ const CurrentBalance = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.balances.map((b) => (
+                    {usdtBalances.map((b) => (
                       <tr key={b.asset} className="border-b border-gray-700">
                         <td className="py-1">{b.asset}</td>
                         <td className="py-1 text-right">{b.available}</td>
@@ -94,7 +101,7 @@ const CurrentBalance = () => {
                   </tbody>
                 </table>
               ) : (
-                <p className="text-gray-500 text-sm">잔고 없음</p>
+                <p className="text-gray-500 text-sm">0.5달러 이상 USDT 잔고 없음</p>
               )}
 
               <div className="mt-4 text-right text-lg font-bold text-yellow-400">

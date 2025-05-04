@@ -1,4 +1,3 @@
-
 package com.auto.trader.balance.dto;
 
 public class BalanceDto {
@@ -7,15 +6,13 @@ public class BalanceDto {
     private double locked;
     private double total;
     private double usdValue;
-    private double krwValue;
 
-    public BalanceDto(String asset, double available, double locked, double total, double usdValue, double krwValue) {
+    public BalanceDto(String asset, double available, double locked, double total, double usdValue) {
         this.asset = asset;
         this.available = available;
         this.locked = locked;
         this.total = total;
         this.usdValue = usdValue;
-        this.krwValue = krwValue;
     }
 
     public String getAsset() {
@@ -36,9 +33,5 @@ public class BalanceDto {
 
     public double getUsdValue() {
         return usdValue;
-    }
-
-    public double getKrwValue() {
-        return krwValue;
     }
 }

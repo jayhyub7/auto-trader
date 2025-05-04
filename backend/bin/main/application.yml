@@ -1,9 +1,9 @@
 logging:
   level:
     root: INFO
-    com.auto.trader: DEBUG
-    org.springframework.web: DEBUG
-    org.hibernate.SQL: DEBUG
+    com.auto.trader: INFO
+    org.springframework.web: INFO
+    org.hibernate.SQL: INFO
     org.hibernate.type.descriptor.sql: TRACE
 
 
