@@ -1,4 +1,4 @@
-interface Candle {
+export interface Candle {
   time: number;
   open: number;
   high: number;
@@ -6,9 +6,15 @@ interface Candle {
   close: number;
 }
 
-interface LinePoint {
+export interface LinePoint {
   time: number;
   value: number | null;
+}
+
+export interface DualLinePoint {
+  time: number;
+  k: number | null;
+  d: number | null;
 }
 
 export const calculateEMA = (data: Candle[], period = 20): LinePoint[] => {
@@ -61,25 +67,41 @@ export const calculateRSI = (data: Candle[], period = 14): LinePoint[] => {
   return result;
 };
 
-export const calculateStochRSI = (data: Candle[], period = 14): LinePoint[] => {
+export const calculateStochRSI = (data: Candle[], period = 14, signalPeriod = 3): DualLinePoint[] => {
   const rsi = calculateRSI(data, period);
-  const result: LinePoint[] = rsi.map((d) => ({ time: d.time, value: null }));
+  const stochK: (number | null)[] = new Array(rsi.length).fill(null);
 
   for (let i = period * 2; i < rsi.length; i++) {
     const slice = rsi.slice(i - period + 1, i + 1);
     const values = slice.map((d) => d.value).filter((v): v is number => v !== null);
-
-    if (values.length < period / 2) continue;
+    if (values.length < period) continue;
 
     const min = Math.min(...values);
     const max = Math.max(...values);
     const current = rsi[i].value;
 
     if (current !== null && max !== min) {
-      const stoch = ((current - min) / (max - min)) * 100;
-      result[i] = { time: rsi[i].time, value: stoch };
+      stochK[i] = ((current - min) / (max - min)) * 100;
     }
   }
+
+  const result: DualLinePoint[] = rsi.map((d, i) => {
+    const k = stochK[i];
+    let dVal: number | null = null;
+
+    if (k !== null && i >= signalPeriod) {
+      const recentK = stochK.slice(i - signalPeriod + 1, i + 1).filter((v): v is number => v !== null);
+      if (recentK.length === signalPeriod) {
+        dVal = recentK.reduce((sum, v) => sum + v, 0) / signalPeriod;
+      }
+    }
+
+    return {
+      time: d.time,
+      k,
+      d: dVal,
+    };
+  });
 
   return result;
 };

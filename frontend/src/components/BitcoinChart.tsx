@@ -7,30 +7,31 @@ import {
   calculateStochRSI,
 } from "@/util/indicatorUtil";
 import SubChart from "./SubChart";
+import { Timeframe, TIMEFRAME_LABELS } from "@/constants/timeframe";
 
 interface BitcoinChartProps {
-  interval?: string;
+  interval?: Timeframe; // 타입을 string 대신 Timeframe으로 변경
 }
 
 const API_URL = "https://api.binance.com/api/v3/klines";
-const DEFAULT_INTERVAL = "1m";
-const INTERVAL_MAP: Record<string, string> = {
-  "1m": "1m",
-  "3m": "3m",
-  "5m": "5m",
-  "15m": "15m",
-  "60m": "1h",
-  "240m": "4h",
+const DEFAULT_INTERVAL = Timeframe.ONE_MINUTE; // 기본값을 Timeframe에서 가져온 값으로 설정
+const INTERVAL_MAP: Record<Timeframe, string> = {
+  [Timeframe.ONE_MINUTE]: "1m",
+  [Timeframe.THREE_MINUTES]: "3m",
+  [Timeframe.FIVE_MINUTES]: "5m",
+  [Timeframe.FIFTEEN_MINUTES]: "15m",
+  [Timeframe.ONE_HOUR]: "1h",
+  [Timeframe.FOUR_HOURS]: "4h",
 };
 
 const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL }) => {
-  const [currentInterval, setCurrentInterval] = useState(interval);
+  const [currentInterval, setCurrentInterval] = useState<Timeframe>(interval);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
   const candleSeriesRef = useRef<any>(null);
   const emaSeriesRef = useRef<any>(null);
   const smaSeriesRef = useRef<any>(null);
-  const candlesRef = useRef<any[]>([]);
+  const candlesRef = useRef<any[]>([]); 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [indicators, setIndicators] = useState<string[]>([]);
@@ -89,7 +90,7 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
     const fetchInitialData = async () => {
       setIsLoading(true);
       try {
-        const mappedInterval = INTERVAL_MAP[currentInterval] || "1m";
+        const mappedInterval = INTERVAL_MAP[currentInterval] || "1m"; // Timeframe을 사용하여 interval 값 가져오기
         const res = await fetch(`${API_URL}?symbol=BTCUSDT&interval=${mappedInterval}&limit=150`);
         const raw = await res.json();
         const formatted = raw.map((d: any) => ({
@@ -195,13 +196,15 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
   return (
     <div className="relative p-4">
       <div className="absolute top-2 left-2 flex gap-2 z-10">
-        {["1m", "3m", "5m", "15m", "60m", "240m"].map((item) => (
+        {Object.values(Timeframe).map((item) => (
           <button
             key={item}
             onClick={() => setCurrentInterval(item)}
-            className={`px-2 py-1 text-xs rounded shadow font-semibold ${currentInterval === item ? "bg-yellow-400 text-black" : "bg-gray-700 text-gray-300"}`}
+            className={`px-2 py-1 text-xs rounded shadow font-semibold ${
+              currentInterval === item ? "bg-yellow-400 text-black" : "bg-gray-700 text-gray-300"
+            }`}
           >
-            {item}
+            {TIMEFRAME_LABELS[item]}
           </button>
         ))}
       </div>
@@ -218,7 +221,7 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
           </button>
         ))}
       </div>
-      {isLoading && <div className="text-white">⏳ 로딩 중...</div>}
+      {isLoading && <div className="text-white">? 로딩 중...</div>}
       <div ref={chartContainerRef} className="w-full h-[400px] border border-slate-600 rounded-md" />
       {(indicators.includes("RSI") || indicators.includes("StochRSI")) && chartRef.current && (
         <SubChart
