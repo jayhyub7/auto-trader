@@ -9,6 +9,8 @@ import lombok.*;
 
 import java.util.List;
 
+import com.auto.trader.domain.User; // 추가
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -20,6 +22,8 @@ public class PositionDto {
     private Exchange exchange;
     private boolean enabled;
     private List<IndicatorConditionDto> conditions;
+
+    private Long userId;
 
     @Getter
     @Setter
@@ -37,3 +41,4 @@ public class PositionDto {
         private Direction direction;
     }
 }
+

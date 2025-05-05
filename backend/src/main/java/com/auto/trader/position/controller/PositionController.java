@@ -19,7 +19,7 @@ public class PositionController {
     }
 
     @PostMapping
-    public void saveAll(@RequestBody List<PositionDto> positions) {
-        positionService.saveAll(positions);
+    public List<PositionDto> saveAll(@RequestBody List<PositionDto> positions) {
+        return positionService.saveAll(positions); // 저장 후 실제 ID 포함된 결과 반환
     }
 }

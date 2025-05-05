@@ -19,10 +19,16 @@ public class PositionService {
         return positionRepository.findAll().stream().map(this::toDto).collect(Collectors.toList());
     }
 
-    public void saveAll(List<PositionDto> dtos) {
-        List<Position> positions = dtos.stream().map(this::toEntity).collect(Collectors.toList());
-        positionRepository.deleteAll();
-        positionRepository.saveAll(positions);
+    public List<PositionDto> saveAll(List<PositionDto> dtos) {
+        List<Position> saved = positionRepository.saveAll(
+            dtos.stream()
+                .map(this::toEntity)
+                .collect(Collectors.toList())
+        );
+
+        return saved.stream()
+            .map(this::toDto) // 실제 ID 포함된 DTO 변환
+            .collect(Collectors.toList());
     }
 
     private PositionDto toDto(Position p) {

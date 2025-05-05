@@ -1,22 +1,7 @@
 import React from "react";
 import { Timeframe, TIMEFRAME_LABELS } from "@/constants/TimeFrame";
+import { IndicatorCondition, Direction, ConditionPhase, IndicatorType, VWBBOperator } from "@/service/positionManager";
 
-type Direction = "LONG" | "SHORT";
-type ConditionPhase = "ENTRY" | "EXIT";
-type IndicatorType = "RSI" | "StochRSI" | "VWBB";
-
-type VWBBOperator = "상단 돌파" | "하단 돌파";
-
-interface IndicatorCondition {
-  type: IndicatorType;
-  value?: number;
-  k?: number;
-  d?: number;
-  operator: "이상" | "이하" | VWBBOperator;
-  timeframe: Timeframe;
-  direction: Direction;
-  conditionPhase: ConditionPhase;
-}
 
 interface ConditionEditorProps {
   selectedDirection: Direction;

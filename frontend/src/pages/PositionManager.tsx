@@ -14,6 +14,13 @@ import "react-toastify/dist/ReactToastify.css";
 import { fetchPositions, savePositions } from "@/service/positionManager";
 import { handleAddCondition } from "@/components/PositionManager/handleAddCondition";
 
+
+export type Direction = "LONG" | "SHORT";
+export type ConditionPhase = "ENTRY" | "EXIT";
+export type IndicatorType = "RSI" | "StochRSI" | "VWBB";
+export type VWBBOperator = "상단 돌파" | "하단 돌파";
+
+
 export interface IndicatorCondition {
   type: "RSI" | "StochRSI";
   value?: number;
@@ -104,10 +111,18 @@ const PositionManager = () => {
 
   const handleSave = async () => {
     try {
-      await savePositions(positions);
-      toast.success("포지션이 저장되었습니다!");
-    } catch (e) {
-      toast.error("저장 중 오류가 발생했습니다.");
+      const mappings = await savePositions(positions); // tempId → realId 목록
+  
+      setPositions((prev) =>
+        prev.map((p) => {
+          const match = mappings.find((m) => m.tempId === p.id);
+          return match ? { ...p, id: match.realId } : p;
+        })
+      );
+  
+      toast.success("저장 완료");
+    } catch (err) {
+      toast.error("저장 중 오류 발생");
     }
   };
 

@@ -1,25 +1,8 @@
 import React from "react";
 import { Exchange, EXCHANGE_LABELS } from "@/constants/Exchange";
 import { Timeframe, TIMEFRAME_LABELS } from "@/constants/TimeFrame";
+import { Position } from "@/service/positionManager";
 
-interface IndicatorCondition {
-  type: "RSI" | "StochRSI" | "VWBB";
-  value?: number;
-  k?: number;
-  d?: number;
-  operator: "이상" | "이하" | "상단 돌파" | "하단 돌파";
-  timeframe: Timeframe;
-  direction: "LONG" | "SHORT";
-  conditionPhase: "ENTRY" | "EXIT";
-}
-
-interface Position {
-  id: string;
-  title: string;
-  exchange: Exchange;
-  conditions: IndicatorCondition[];
-  enabled: boolean;
-}
 
 interface Props {
   positions: Position[];
