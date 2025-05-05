@@ -3,13 +3,14 @@ import { Exchange, EXCHANGE_LABELS } from "@/constants/Exchange";
 import { Timeframe, TIMEFRAME_LABELS } from "@/constants/TimeFrame";
 
 interface IndicatorCondition {
-  type: "RSI" | "StochRSI";
+  type: "RSI" | "StochRSI" | "VWBB";
   value?: number;
   k?: number;
   d?: number;
-  operator: "이상" | "이하";
+  operator: "이상" | "이하" | "상단 돌파" | "하단 돌파";
   timeframe: Timeframe;
   direction: "LONG" | "SHORT";
+  conditionPhase: "ENTRY" | "EXIT";
 }
 
 interface Position {
@@ -46,8 +47,9 @@ const PositionTable: React.FC<Props> = ({
           <th className="border border-gray-600 p-2">선택</th>
           <th className="border border-gray-600 p-2">포지션 제목</th>
           <th className="border border-gray-600 p-2">거래소</th>
-          <th className="border border-gray-600 p-2">조건</th>
+          <th className="border border-gray-600 p-2">조건</th>           
           <th className="border border-gray-600 p-2">내용</th>
+          <th className="border border-gray-600 p-2 text-center">조건유형</th>
           <th className="border border-gray-600 p-2 text-center">조건추가</th>
           <th className="border border-gray-600 p-2 text-center">사용여부</th>
           <th className="border border-gray-600 p-2 text-center">조건삭제</th>
@@ -73,10 +75,18 @@ const PositionTable: React.FC<Props> = ({
                 )}
                 <td className="border border-gray-600 p-2">조건 {idx + 1}</td>
                 <td className="border border-gray-600 p-2">
-                  [{cond.direction}] {cond.timeframe} - {cond.type}{" "}
-                  {cond.type === "RSI"
-                    ? ` ${cond.value} ${cond.operator}`
-                    : `K ${cond.k} ${cond.operator} D ${cond.d} ${cond.operator}`}
+                  [{cond.direction}] {cond.timeframe} -{
+                    cond.type === "RSI"
+                      ? ` ${cond.value} ${cond.operator}`
+                      : cond.type === "StochRSI"
+                      ? `K ${cond.k} ${cond.operator} D ${cond.d} ${cond.operator}`
+                      : cond.type === "VWBB"
+                      ? `${cond.operator}`
+                      : ""
+                  }
+                </td>
+                <td className="border border-gray-600 p-2 text-center">
+                  {cond.conditionPhase === "ENTRY" ? "진입" : "종료"}
                 </td>
                 {idx === 0 && (
                   <>
@@ -121,7 +131,7 @@ const PositionTable: React.FC<Props> = ({
               </td>
               <td className="border border-gray-600 p-2">{pos.title}</td>
               <td className="border border-gray-600 p-2">{EXCHANGE_LABELS[pos.exchange]}</td>
-              <td className="border border-gray-600 p-2" colSpan={2}>조건 없음</td>
+              <td className="border border-gray-600 p-2" colSpan={3}>조건 없음</td>
               <td className="border border-gray-600 p-2 text-center">
                 <button
                   onClick={() => {

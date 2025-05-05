@@ -2,17 +2,20 @@ import React from "react";
 import { Timeframe, TIMEFRAME_LABELS } from "@/constants/TimeFrame";
 
 type Direction = "LONG" | "SHORT";
+type ConditionPhase = "ENTRY" | "EXIT";
+type IndicatorType = "RSI" | "StochRSI" | "VWBB";
 
-type IndicatorType = "RSI" | "StochRSI";
+type VWBBOperator = "상단 돌파" | "하단 돌파";
 
 interface IndicatorCondition {
   type: IndicatorType;
   value?: number;
   k?: number;
   d?: number;
-  operator: "이상" | "이하";
+  operator: "이상" | "이하" | VWBBOperator;
   timeframe: Timeframe;
   direction: Direction;
+  conditionPhase: ConditionPhase;
 }
 
 interface ConditionEditorProps {
@@ -24,25 +27,63 @@ interface ConditionEditorProps {
   setSelectedTimeframe: (tf: Timeframe) => void;
   setSelectedIndicator: (type: string) => void;
   setCurrentCondition: (cond: Partial<IndicatorCondition>) => void;
-  handleAddCondition: () => void;
+  selectedPhase: ConditionPhase;
+  setSelectedPhase: (phase: ConditionPhase) => void;
+  activePositionId: string | null;
+  positions: Position[];
+  setPositions: (positions: Position[]) => void;
+  setShowConditionBox: (v: boolean) => void;
+  handleAddCondition: (params: {
+    selectedIndicator: string;
+    activePositionId: string | null;
+    positions: Position[];
+    selectedDirection: Direction;
+    selectedTimeframe: Timeframe;
+    currentCondition: Partial<IndicatorCondition>;
+    setPositions: (positions: Position[]) => void;
+    setCurrentCondition: (cond: Partial<IndicatorCondition>) => void;
+    setSelectedIndicator: (v: string) => void;
+    setShowConditionBox: (v: boolean) => void;
+    selectedPhase: ConditionPhase;
+  }) => void;
 }
 
 const ConditionEditor: React.FC<ConditionEditorProps> = ({
   selectedDirection,
   selectedTimeframe,
   selectedIndicator,  
+  currentCondition,
   setSelectedDirection,
   setSelectedTimeframe,
   setSelectedIndicator,
   setCurrentCondition,
+  setShowConditionBox,
   handleAddCondition,
+  selectedPhase,
+  setSelectedPhase,
+  activePositionId,
+  positions,
+  setPositions,
 }) => {
   return (
     <div className="mt-6 border-2 border-gray-700 p-4 bg-gray-800 rounded-md relative">
       <div className="absolute top-4 right-4">
-        <button
-          onClick={handleAddCondition}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        <button className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+          onClick={() => {
+            handleAddCondition({
+              selectedIndicator,
+              activePositionId,
+              positions,
+              selectedDirection,
+              selectedTimeframe,
+              currentCondition,
+              setPositions,
+              setCurrentCondition,
+              setSelectedIndicator,
+              setShowConditionBox,
+              selectedPhase,
+            });
+          }}
         >
           조건 저장
         </button>
@@ -64,6 +105,22 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
             숏
           </button>
         </div>
+      </div>
+
+      <div className="flex gap-2 items-center mb-4 text-white">
+        <span>조건 유형</span>
+        <button
+          className={`px-2 py-1 rounded ${selectedPhase === "ENTRY" ? "bg-blue-600" : "bg-gray-600"}`}
+          onClick={() => setSelectedPhase("ENTRY")}
+        >
+          진입조건
+        </button>
+        <button
+          className={`px-2 py-1 rounded ${selectedPhase === "EXIT" ? "bg-blue-600" : "bg-gray-600"}`}
+          onClick={() => setSelectedPhase("EXIT")}
+        >
+          종료조건
+        </button>
       </div>
 
       <div className="flex flex-wrap gap-4 text-white mb-4">
@@ -89,6 +146,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
         <option value="">-- 지표 선택 --</option>
         <option value="RSI">RSI</option>
         <option value="StochRSI">StochRSI</option>
+        <option value="VWBB">VWBB</option>
       </select>
 
       {selectedIndicator === "RSI" && (
@@ -142,11 +200,44 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
             }
             className="px-2 py-1 rounded bg-gray-700 text-gray-300"
           />
-          <span className="text-white text-sm">
-            {selectedDirection === "LONG" ? "이하" : "이상"}
-          </span>
         </div>
       )}
+
+      {selectedIndicator === "VWBB" && (
+        <div className="flex gap-4 text-white">
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="vwbb"
+              value="상단 돌파"
+              onChange={() =>
+                setCurrentCondition((prev) => ({
+                  ...prev,
+                  type: "VWBB",
+                  operator: "상단 돌파",
+                }))
+              }
+            />
+            상단 돌파
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="vwbb"
+              value="하단 돌파"
+              onChange={() =>
+                setCurrentCondition((prev) => ({
+                  ...prev,
+                  type: "VWBB",
+                  operator: "하단 돌파",
+                }))
+              }
+            />
+            하단 돌파
+          </label>
+        </div>
+      )}
+
     </div>
   );
 };

@@ -5,6 +5,7 @@ import {
   calculateSMA,
   calculateRSI,
   calculateStochRSI,
+  calculateVWBB,
 } from "@/util/indicatorUtil";
 import SubChart from "./SubChart";
 import { Timeframe, TIMEFRAME_LABELS } from "@/constants/timeframe";
@@ -30,13 +31,17 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
   const chartRef = useRef<any>(null);
   const candleSeriesRef = useRef<any>(null);
   const emaSeriesRef = useRef<any>(null);
-  const smaSeriesRef = useRef<any>(null);
+  const smaSeriesRefs = useRef<Record<number, any>>({}); // period별 ref 저장용
   const candlesRef = useRef<any[]>([]); 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [indicators, setIndicators] = useState<string[]>([]);
   const [rsiData, setRsiData] = useState<any[]>([]);
   const [stochRsiData, setStochRsiData] = useState<any[]>([]);
+  //VWBB
+  const vwbbUpperSeriesRef = useRef<any>(null);
+  const vwbbLowerSeriesRef = useRef<any>(null);
+  const vwbbBasisSeriesRef = useRef<any>(null);
 
   const toggleIndicator = (name: string) => {
     setIndicators((prev) =>
@@ -91,7 +96,7 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
       setIsLoading(true);
       try {
         const mappedInterval = INTERVAL_MAP[currentInterval] || "1m"; // Timeframe을 사용하여 interval 값 가져오기
-        const res = await fetch(`${API_URL}?symbol=BTCUSDT&interval=${mappedInterval}&limit=150`);
+        const res = await fetch(`${API_URL}?symbol=BTCUSDT&interval=${mappedInterval}&limit=500`);
         const raw = await res.json();
         const formatted = raw.map((d: any) => ({
           time: d[0] / 1000,
@@ -112,9 +117,14 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
         }
 
         if (indicators.includes("SMA")) {
-          const sma = calculateSMA(formatted);
-          smaSeriesRef.current = chart.addLineSeries();
-          smaSeriesRef.current.setData(sma.filter((d) => d.value !== null));
+          [20, 60, 100].forEach((period) => {
+            const sma = calculateSMA(formatted, period);
+            const series = chart.addLineSeries({
+              color: period === 20 ? "orange" : period === 60 ? "aqua" : "violet",
+            });
+            series.setData(sma.filter((d) => d.value !== null));
+            smaSeriesRefs.current[period] = series;
+          });
         }
 
         if (indicators.includes("RSI")) {
@@ -126,6 +136,16 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
           const stoch = calculateStochRSI(formatted);
           setStochRsiData(stoch);
         }
+        if (indicators.includes("VWBB")) {
+          const vwbb = calculateVWBB(formatted);
+          vwbbUpperSeriesRef.current = chart.addLineSeries({ color: "red" });
+          vwbbLowerSeriesRef.current = chart.addLineSeries({ color: "blue" });
+          vwbbBasisSeriesRef.current = chart.addLineSeries({ color: "orange" });
+        
+          vwbbUpperSeriesRef.current.setData(vwbb.upper.filter(d => d.value !== null));
+          vwbbLowerSeriesRef.current.setData(vwbb.lower.filter(d => d.value !== null));
+          vwbbBasisSeriesRef.current.setData(vwbb.basis.filter(d => d.value !== null));
+        }        
       } catch (e) {
         console.error("데이터 로딩 실패", e);
       }
@@ -163,9 +183,12 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
             emaSeriesRef.current.setData(ema.filter((d) => d.value !== null));
           }
 
-          if (indicators.includes("SMA") && smaSeriesRef.current) {
-            const sma = calculateSMA(candlesRef.current);
-            smaSeriesRef.current.setData(sma.filter((d) => d.value !== null));
+          if (indicators.includes("SMA")) {
+            [20, 60, 100].forEach((period) => {
+              const sma = calculateSMA(candlesRef.current, period);
+              const series = smaSeriesRefs.current[period];
+              series?.setData(sma.filter((d) => d.value !== null));
+            });
           }
 
           if (indicators.includes("RSI")) {
@@ -177,6 +200,12 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
             const stoch = calculateStochRSI(candlesRef.current);
             setStochRsiData(stoch);
           }
+          if (indicators.includes("VWBB")) {
+            const vwbb = calculateVWBB(candlesRef.current);
+            vwbbUpperSeriesRef.current?.setData(vwbb.upper.filter(d => d.value !== null));
+            vwbbLowerSeriesRef.current?.setData(vwbb.lower.filter(d => d.value !== null));
+            vwbbBasisSeriesRef.current?.setData(vwbb.basis.filter(d => d.value !== null));
+          }          
         } catch (e) {
           console.error("실시간 캔들 갱신 실패", e);
         }
@@ -209,7 +238,7 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
         ))}
       </div>
       <div className="absolute top-2 right-2 flex gap-2 z-10">
-        {["EMA", "SMA", "RSI", "StochRSI"].map((name) => (
+        {["EMA", "SMA", "RSI", "StochRSI", "VWBB"].map((name) => (
           <button
             key={name}
             onClick={() => toggleIndicator(name)}

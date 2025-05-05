@@ -13,6 +13,7 @@ interface Params {
   setCurrentCondition: (cond: Partial<IndicatorCondition>) => void;
   setSelectedIndicator: (v: string) => void;
   setShowConditionBox: (v: boolean) => void;
+  selectedPhase: "ENTRY" | "EXIT";
 }
 
 export const handleAddCondition = ({
@@ -26,7 +27,11 @@ export const handleAddCondition = ({
   setCurrentCondition,
   setSelectedIndicator,
   setShowConditionBox,
+  selectedPhase,
 }: Params) => {
+ 
+  console.log('selectedIndicator : ', selectedIndicator)
+  console.log('currentCondition : ', currentCondition)
   if (!selectedIndicator || !activePositionId) {
     toast.error("지표를 선택해주세요.");
     return;
@@ -47,10 +52,15 @@ export const handleAddCondition = ({
   }
 
   const isDuplicate = targetPosition.conditions.some(
-    (c: any) => c.type === selectedIndicator && c.timeframe === selectedTimeframe
+    (c: any) =>
+      c.type === selectedIndicator &&
+      c.timeframe === selectedTimeframe &&
+      c.conditionPhase === selectedPhase
   );
+
   if (isDuplicate) {
-    toast.error(`${TIMEFRAME_LABELS[selectedTimeframe]} 분봉의 ${selectedIndicator} 조건은 이미 존재합니다.`);
+    const phaseLabel = selectedPhase === "ENTRY" ? "진입조건" : "종료조건";
+    toast.error(`${TIMEFRAME_LABELS[selectedTimeframe]} 분봉의 ${selectedIndicator} (${phaseLabel})은 이미 존재합니다.`);
     return;
   }
 
@@ -77,10 +87,18 @@ export const handleAddCondition = ({
     }
   }
 
+  if (selectedIndicator === "VWBB") {
+    if (!currentCondition.operator) {
+      toast.error("VWBB 조건 유형을 선택해주세요.");
+      return;
+    }
+  }
+
   const conditionWithTimeframe = {
     ...currentCondition,
     timeframe: selectedTimeframe,
     direction: selectedDirection,
+    conditionPhase: selectedPhase,
   } as IndicatorCondition;
 
   setPositions(

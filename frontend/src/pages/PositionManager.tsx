@@ -1,6 +1,7 @@
 // components/PositionManager/index.tsx
 // 메인 엔트리: 상태 관리 및 레이아웃
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import BitcoinChart from "@/components/BitcoinChart";
 import PositionControls from "@/components/PositionManager/PositionControls";
 import ConditionEditor from "@/components/PositionManager/ConditionEditor";
@@ -10,6 +11,8 @@ import { Timeframe } from "@/constants/TimeFrame";
 import { v4 as uuidv4 } from "uuid";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { fetchPositions, savePositions } from "@/service/positionManager";
+import { handleAddCondition } from "@/components/PositionManager/handleAddCondition";
 
 export interface IndicatorCondition {
   type: "RSI" | "StochRSI";
@@ -41,6 +44,15 @@ const PositionManager = () => {
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>(Timeframe.ONE_MINUTE);
   const [selectedIndicator, setSelectedIndicator] = useState<string>("");
   const [currentCondition, setCurrentCondition] = useState<Partial<IndicatorCondition>>({});
+  const [selectedPhase, setSelectedPhase] = useState<"ENTRY" | "EXIT">("ENTRY");
+
+  useEffect(() => { 
+    const loadPositions = async () => {
+      const result = await fetchPositions();
+      if (result) setPositions(result);
+    };
+    loadPositions();
+  }, []);
 
   const handleAddPosition = () => {
     if (!selectedExchange) return toast.error("거래소를 선택해주세요.");
@@ -90,83 +102,13 @@ const PositionManager = () => {
     );
   };
 
-  const savePositions = () => {
-    toast.success("변경사항이 저장되었습니다.");
-    // API 저장 로직 추가 가능
-  };
-
-  const handleAddCondition = () => {
-    if (!selectedIndicator || !activePositionId) {
-      toast.error("지표를 선택해주세요.");
-      return;
+  const handleSave = async () => {
+    try {
+      await savePositions(positions);
+      toast.success("포지션이 저장되었습니다!");
+    } catch (e) {
+      toast.error("저장 중 오류가 발생했습니다.");
     }
-
-    const targetPosition = positions.find((p) => p.id === activePositionId);
-    if (!targetPosition) return;
-
-    const existingDirection = targetPosition.conditions.find((c) => c.direction === "LONG")
-      ? "LONG"
-      : targetPosition.conditions.find((c) => c.direction === "SHORT")
-      ? "SHORT"
-      : null;
-
-    if (existingDirection && selectedDirection !== existingDirection) {
-      toast.error(`${existingDirection} 조건만 추가할 수 있습니다.`);
-      return;
-    }
-
-    const isDuplicate = targetPosition.conditions.some(
-      (c) => c.type === selectedIndicator && c.timeframe === selectedTimeframe
-    );
-
-    if (isDuplicate) {
-      toast.error(`${selectedTimeframe} 분봉의 ${selectedIndicator} 조건은 이미 존재합니다.`);
-      return;
-    }
-
-    if (selectedIndicator === "RSI") {
-      if (
-        currentCondition.value === undefined ||
-        currentCondition.value === null ||
-        isNaN(currentCondition.value)
-      ) {
-        toast.error("RSI 값이 입력되지 않았습니다.");
-        return;
-      }
-    }
-
-    if (selectedIndicator === "StochRSI") {
-      if (
-        currentCondition.k === undefined ||
-        currentCondition.d === undefined ||
-        isNaN(currentCondition.k) ||
-        isNaN(currentCondition.d)
-      ) {
-        toast.error("StochRSI의 K 또는 D 값이 입력되지 않았습니다.");
-        return;
-      }
-    }
-
-    const conditionWithTimeframe = {
-      ...currentCondition,
-      timeframe: selectedTimeframe,
-      direction: selectedDirection,
-    } as IndicatorCondition;
-
-    setPositions((prev) =>
-      prev.map((p) =>
-        p.id === activePositionId
-          ? {
-              ...p,
-              conditions: [...p.conditions, conditionWithTimeframe],
-            }
-          : p
-      )
-    );
-
-    setCurrentCondition({});
-    setSelectedIndicator("");
-    setShowConditionBox(false);
   };
 
   return (
@@ -207,7 +149,7 @@ const PositionManager = () => {
         <PositionControls
           onAdd={handleAddPosition}
           onDelete={deleteSelectedPositions}
-          onSave={savePositions}
+          onSave={handleSave}
         />
       </div>
 
@@ -221,7 +163,13 @@ const PositionManager = () => {
           setSelectedIndicator={setSelectedIndicator}
           currentCondition={currentCondition}
           setCurrentCondition={setCurrentCondition}
-          handleAddCondition={handleAddCondition}
+          selectedPhase={selectedPhase}
+          setSelectedPhase={setSelectedPhase}
+          activePositionId={activePositionId}         // ✅ 추가
+          positions={positions}                       // ✅ 추가
+          setPositions={setPositions}                 // ✅ 추가
+          setShowConditionBox={setShowConditionBox}   // ✅ 추가
+          handleAddCondition={handleAddCondition}     // ✅ 위치 중요 X
         />
       )}
 
