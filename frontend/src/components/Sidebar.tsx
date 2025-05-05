@@ -2,6 +2,8 @@ import React from "react";
 import AuthKeyManager from "../pages/AuthKeyManager";
 import CurrentBalance from "../pages/CurrentBalance"; 
 import PositionManager from "../pages/PositionManager"; 
+import PositionOpen from "../pages/PositionOpen"; 
+
 
 const Sidebar = ({
   openTab,
@@ -30,7 +32,13 @@ const Sidebar = ({
           onClick={() => openTab("position-manager", "포지션 관리", <PositionManager />)}
         >
           💰 포지션 관리
-        </li>        
+        </li>    
+        <li
+          className="hover:text-yellow-400 cursor-pointer"
+          onClick={() => openTab("position-open", "포지션 오픈", <PositionOpen />)}
+        >
+          💰 포지션 오픈
+        </li>              
       </ul>
     </aside>
   );

@@ -1,8 +1,7 @@
 import React from "react";
 import { Exchange, EXCHANGE_LABELS } from "@/constants/Exchange";
-import { Timeframe, TIMEFRAME_LABELS } from "@/constants/TimeFrame";
+import { Timeframe } from "@/constants/TimeFrame";
 import { Position } from "@/service/positionManager";
-
 
 interface Props {
   positions: Position[];
@@ -12,6 +11,7 @@ interface Props {
   deleteCondition: (positionId: string, conditionIndex?: number) => void;
   setShowConditionBox: (show: boolean) => void;
   setActivePositionId: (id: string | null) => void;
+  setPositions: React.Dispatch<React.SetStateAction<Position[]>>;
 }
 
 const PositionTable: React.FC<Props> = ({
@@ -22,6 +22,7 @@ const PositionTable: React.FC<Props> = ({
   deleteCondition,
   setShowConditionBox,
   setActivePositionId,
+  setPositions,
 }) => {
   return (
     <table className="w-full text-white mt-8 border border-gray-700">
@@ -30,7 +31,7 @@ const PositionTable: React.FC<Props> = ({
           <th className="border border-gray-600 p-2">선택</th>
           <th className="border border-gray-600 p-2">포지션 제목</th>
           <th className="border border-gray-600 p-2">거래소</th>
-          <th className="border border-gray-600 p-2">조건</th>           
+          <th className="border border-gray-600 p-2">조건</th>
           <th className="border border-gray-600 p-2">내용</th>
           <th className="border border-gray-600 p-2 text-center">조건유형</th>
           <th className="border border-gray-600 p-2 text-center">조건추가</th>
@@ -52,8 +53,22 @@ const PositionTable: React.FC<Props> = ({
                         onChange={() => toggleSelectPosition(pos.id)}
                       />
                     </td>
-                    <td rowSpan={pos.conditions.length} className="border border-gray-600 p-2">{pos.title}</td>
-                    <td rowSpan={pos.conditions.length} className="border border-gray-600 p-2">{EXCHANGE_LABELS[pos.exchange]}</td>
+                    <td rowSpan={pos.conditions.length} className="border border-gray-600 p-2">
+                      <input
+                        type="text"
+                        className="bg-transparent border border-gray-500 rounded px-2 py-1 w-full"
+                        value={pos.title ?? ""}
+                        onChange={(e) => {                                                     
+                          const newTitle = e.target.value;
+                          setPositions((prev) =>
+                            prev.map((p) => (p.id === pos.id ? { ...p, title: newTitle } : p))
+                          );
+                        }}
+                      />
+                    </td>
+                    <td rowSpan={pos.conditions.length} className="border border-gray-600 p-2">
+                      {EXCHANGE_LABELS[pos.exchange]}
+                    </td>
                   </>
                 )}
                 <td className="border border-gray-600 p-2">조건 {idx + 1}</td>
@@ -112,7 +127,19 @@ const PositionTable: React.FC<Props> = ({
                   onChange={() => toggleSelectPosition(pos.id)}
                 />
               </td>
-              <td className="border border-gray-600 p-2">{pos.title}</td>
+              <td className="border border-gray-600 p-2">
+                <input
+                  type="text"
+                  className="bg-transparent border border-gray-500 rounded px-2 py-1 w-full"
+                  value={pos.title ?? ""}
+                  onChange={(e) => {                                       
+                    const newTitle = e.target.value;
+                    setPositions((prev) =>
+                      prev.map((p) => (p.id === pos.id ? { ...p, title: newTitle } : p))
+                    );
+                  }}
+                />
+              </td>
               <td className="border border-gray-600 p-2">{EXCHANGE_LABELS[pos.exchange]}</td>
               <td className="border border-gray-600 p-2" colSpan={3}>조건 없음</td>
               <td className="border border-gray-600 p-2 text-center">

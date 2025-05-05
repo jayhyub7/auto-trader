@@ -11,7 +11,7 @@ import { Timeframe } from "@/constants/TimeFrame";
 import { v4 as uuidv4 } from "uuid";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { fetchPositions, savePositions } from "@/service/positionManager";
+import { fetchPositions, savePositions, deletePosition  } from "@/service/positionManager";
 import { handleAddCondition } from "@/components/PositionManager/handleAddCondition";
 
 
@@ -37,6 +37,11 @@ export interface Position {
   exchange: Exchange;
   conditions: IndicatorCondition[];
   enabled: boolean;
+}
+
+export interface IdMapping {
+  tempId: number;   // 프론트 임시 ID
+  realId: number;   // 백엔드 실제 저장된 ID
 }
 
 const PositionManager = () => {
@@ -75,16 +80,28 @@ const PositionManager = () => {
     setPositionTitle("");
   };
 
-  const toggleSelectPosition = (id: string) => {
+  const toggleSelectPosition = (id: string, force?: boolean) => {
     setSelectedPositionIds((prev) => {
       const newSet = new Set(prev);
-      newSet.has(id) ? newSet.delete(id) : newSet.add(id);
+      if (force === undefined) {
+        // 기존 토글 동작
+        newSet.has(id) ? newSet.delete(id) : newSet.add(id);
+      } else {
+        // 전체 선택/해제에서 사용
+        force ? newSet.add(id) : newSet.delete(id);
+      }
       return newSet;
     });
   };
 
-  const deleteSelectedPositions = () => {
-    setPositions((prev) => prev.filter((p) => !selectedPositionIds.has(p.id)));
+  const deleteSelectedPositions = async () => {
+    const idsToDelete = Array.from(selectedPositionIds);
+  
+    // 각각 개별 삭제 요청
+    await Promise.all(idsToDelete.map(id => deletePosition(id)));
+  
+    // 프론트 상태도 갱신
+    setPositions(prev => prev.filter(p => !selectedPositionIds.has(p.id)));
     setSelectedPositionIds(new Set());
   };
 
@@ -160,12 +177,13 @@ const PositionManager = () => {
           onChange={(e) => setPositionTitle(e.target.value)}
           className="px-4 py-2 rounded bg-gray-800 text-white border border-gray-600 w-1/2 mx-4"
         />
-
-        <PositionControls
-          onAdd={handleAddPosition}
-          onDelete={deleteSelectedPositions}
-          onSave={handleSave}
-        />
+        {!showConditionBox && (
+          <PositionControls
+            onAdd={handleAddPosition}
+            onDelete={deleteSelectedPositions}
+            onSave={handleSave}
+          />
+        )}
       </div>
 
       {showConditionBox && (
@@ -196,6 +214,7 @@ const PositionManager = () => {
         deleteCondition={deleteCondition}
         setShowConditionBox={setShowConditionBox}
         setActivePositionId={setActivePositionId}
+        setPositions={setPositions}
       />
 
       <ToastContainer position="top-center" autoClose={2000} />

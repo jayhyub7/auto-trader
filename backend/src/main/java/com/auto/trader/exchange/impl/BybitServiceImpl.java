@@ -86,22 +86,39 @@ public class BybitServiceImpl extends AbstractExchangeService implements Exchang
     }
     
     public HttpHeaders buildHeaders(ApiKey apiKey, String queryString) {
-        long timestamp = System.currentTimeMillis();
-        String recvWindow = "5000";
-        String payload = timestamp + apiKey.getApiKey() + recvWindow + queryString;
-        String signature = hmacSha256(payload, apiKey.getSecretKey());
+        try {
+            // 1. Bybit 서버 시간 조회
+            String timeUrl = BASE_URL + "/v5/market/time";
+            Map<String, Object> timeResponse = getWithHeaders(timeUrl, new HttpHeaders()).getBody();
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-BAPI-API-KEY", apiKey.getApiKey());
-        headers.set("X-BAPI-SIGN", signature);
-        headers.set("X-BAPI-TIMESTAMP", String.valueOf(timestamp));
-        headers.set("X-BAPI-RECV-WINDOW", recvWindow);
-        headers.set("X-BAPI-SIGN-TYPE", "2");
-        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        return headers;
+            if (timeResponse == null || !timeResponse.containsKey("time")) {
+                throw new IllegalStateException("Bybit 서버 시간 응답이 잘못되었습니다.");
+            }
+
+            long timestamp = Long.parseLong(timeResponse.get("time").toString()); // ms 단위
+            String recvWindow = "10000";
+            String qs = queryString != null ? queryString : "";
+
+            // 2. pre-hash 형식: timestamp + apiKey + recvWindow + queryString
+            String payload = timestamp + apiKey.getApiKey() + recvWindow + qs;
+            String signature = hmacSha256(payload, apiKey.getSecretKey());
+
+            // 3. 헤더 구성
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-BAPI-API-KEY", apiKey.getApiKey());
+            headers.set("X-BAPI-SIGN", signature);
+            headers.set("X-BAPI-TIMESTAMP", String.valueOf(timestamp));
+            headers.set("X-BAPI-RECV-WINDOW", recvWindow);
+            headers.set("X-BAPI-SIGN-TYPE", "2");
+            headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            return headers;
+        } catch (Exception e) {
+            throw new RuntimeException("❌ Bybit Header 생성 실패", e);
+        }
     }
-
+    
 	@Override
 	public HttpHeaders buildHeaders(ApiKey apiKey) {
 		// TODO Auto-generated method stub

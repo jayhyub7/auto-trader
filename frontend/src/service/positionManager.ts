@@ -5,7 +5,7 @@ import { Timeframe } from "@/constants/TimeFrame";
 export type Direction = "LONG" | "SHORT";
 export type ConditionPhase = "ENTRY" | "EXIT";
 export type IndicatorType = "RSI" | "StochRSI" | "VWBB";
-export type VWBBOperator = "상단 돌파" | "하단 돌파";
+export type VWBBOperator = "상단_돌파" | "하단_돌파";
 
 export interface IndicatorCondition {
   type: IndicatorType;
@@ -32,8 +32,22 @@ export const fetchPositions = async (): Promise<Position[]> => {
 };
 
 export const savePositions = async (positions: Position[]): Promise<IdMapping[]> => {
-  const res = await api.post<IdMapping[]>("/positions", positions);
+  const payload = positions.map(p => ({
+    id: isValidLong(p.id) ? Number(p.id) : null, // Long만 전송
+    tempId: p.id, // 프론트의 임시 ID
+    title: p.title,
+    exchange: p.exchange,
+    enabled: p.enabled,
+    conditions: p.conditions,
+  }));
+
+  const res = await api.post<IdMapping[]>("/positions", payload);
   return res.data;
+};
+
+const isValidLong = (id: string): boolean => {
+  // 숫자로만 이루어진 경우 (e.g. "123", "45") → Long 가능
+  return /^\d+$/.test(id);
 };
 
 export const deletePosition = async (id: string): Promise<void> => {

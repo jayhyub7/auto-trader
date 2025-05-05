@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Exchange, EXCHANGE_LABELS } from "../constants/Exchange";
-import api from "../lib/axios";
+import { fetchBalances, ExchangeBalance } from "@/service/balanceService";
 
 type BalanceItem = {
   asset: string;
@@ -22,24 +22,19 @@ const CurrentBalance = () => {
   const exchanges = Object.values(Exchange);
   const [balances, setBalances] = useState<Record<string, ExchangeBalance>>({});
 
-  const fetchBalances = async () => {
-    try {
-      const res = await api.get<ExchangeBalance[]>("/current-balance");
-      const mapped = res.data.reduce((acc, cur) => {
-        acc[cur.exchange] = cur;
-        return acc;
-      }, {} as Record<string, ExchangeBalance>);
-      setBalances(mapped);
-    } catch (e) {
-      console.error("잔고 요청 실패:", e);
-    }
-  };
-
   useEffect(() => {
-    fetchBalances(); // 초기 로딩
-    const interval = setInterval(fetchBalances, 10000); // 10초마다 갱신
-    return () => clearInterval(interval); // 언마운트 시 정리
+    const load = async () => {
+      try {
+        const result = await fetchBalances();
+        setBalances(result);
+      } catch (e) {
+        console.error("잔고 요청 실패:", e);
+      }
+    };
+  
+    load(); // ✅ 초기 1회 호출만 수행
   }, []);
+  
 
   return (
     <div className="p-6 text-white">

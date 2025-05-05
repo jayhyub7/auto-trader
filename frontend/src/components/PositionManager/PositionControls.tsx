@@ -4,9 +4,17 @@ interface PositionControlsProps {
   onAdd: () => void;
   onDelete: () => void;
   onSave: () => void;
+  showConditionBox: boolean; // 🔥 추가
 }
 
-const PositionControls: React.FC<PositionControlsProps> = ({ onAdd, onDelete, onSave }) => {
+const PositionControls: React.FC<PositionControlsProps> = ({
+  onAdd,
+  onDelete,
+  onSave,
+  showConditionBox, // 🔥 추가
+}) => {
+  if (showConditionBox) return null; // 🔥 조건 박스 보이면 숨김
+
   return (
     <div className="flex justify-end gap-2 mb-4">
       <button

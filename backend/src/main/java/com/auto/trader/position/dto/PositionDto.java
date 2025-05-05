@@ -1,15 +1,19 @@
 package com.auto.trader.position.dto;
 
+import java.util.List;
+
 import com.auto.trader.domain.Exchange;
+import com.auto.trader.position.enums.ConditionPhase;
 import com.auto.trader.position.enums.Direction;
 import com.auto.trader.position.enums.IndicatorType;
 import com.auto.trader.position.enums.Operator;
 import com.auto.trader.position.enums.Timeframe;
-import lombok.*;
 
-import java.util.List;
-
-import com.auto.trader.domain.User; // 추가
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -39,6 +43,7 @@ public class PositionDto {
         private Operator operator;
         private Timeframe timeframe;
         private Direction direction;
+        private ConditionPhase conditionPhase; 
     }
 }
 

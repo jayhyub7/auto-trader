@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Timeframe, TIMEFRAME_LABELS } from "@/constants/TimeFrame";
 import { IndicatorCondition, Direction, ConditionPhase, IndicatorType, VWBBOperator } from "@/service/positionManager";
 
@@ -36,7 +36,7 @@ interface ConditionEditorProps {
 const ConditionEditor: React.FC<ConditionEditorProps> = ({
   selectedDirection,
   selectedTimeframe,
-  selectedIndicator,  
+  selectedIndicator,
   currentCondition,
   setSelectedDirection,
   setSelectedTimeframe,
@@ -50,6 +50,20 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
   positions,
   setPositions,
 }) => {
+
+  // 👉 기본 operator 설정 useEffect
+  useEffect(() => {
+    if (
+      (selectedIndicator === "RSI" || selectedIndicator === "StochRSI") &&
+      !currentCondition.operator
+    ) {
+      setCurrentCondition((prev) => ({
+        ...prev,
+        operator: selectedDirection === "LONG" ? "이하" : "이상",
+      }));
+    }
+  }, [selectedIndicator, selectedDirection]);
+
   return (
     <div className="mt-6 border-2 border-gray-700 p-4 bg-gray-800 rounded-md relative">
       <div className="absolute top-4 right-4">
@@ -135,28 +149,58 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
       </select>
 
       {selectedIndicator === "RSI" && (
-        <div className="flex items-center gap-3">
-          <input
-            type="number"
-            placeholder="값"
-            onChange={(e) =>
-              setCurrentCondition({
-                type: "RSI",
-                value: Number(e.target.value),
-                operator: selectedDirection === "LONG" ? "이하" : "이상",
-              })
-            }
-            className="px-2 py-1 rounded bg-gray-700 text-gray-300"
-          />
-          <span className="text-white text-sm">
-            {selectedDirection === "LONG" ? "이하" : "이상"}
-          </span>
+      <div className="flex items-center gap-3">
+        <input
+          type="number"
+          placeholder="값"
+          onChange={(e) =>
+            setCurrentCondition((prev) => ({
+              ...prev,
+              type: "RSI",
+              value: Number(e.target.value),
+            }))
+          }
+          className="px-2 py-1 rounded bg-gray-700 text-gray-300"
+        />
+        <div className="flex gap-2 items-center">
+          <label className="flex items-center gap-1">
+            <input
+              type="radio"
+              name="rsi-operator"
+              value="이하"
+              checked={currentCondition.operator === "이하"}
+              onChange={() =>
+                setCurrentCondition((prev) => ({
+                  ...prev,
+                  operator: "이하",
+                }))
+              }
+            />
+            이하
+          </label>
+          <label className="flex items-center gap-1">
+            <input
+              type="radio"
+              name="rsi-operator"
+              value="이상"
+              checked={currentCondition.operator === "이상"}
+              onChange={() =>
+                setCurrentCondition((prev) => ({
+                  ...prev,
+                  operator: "이상",
+                }))
+              }
+            />
+            이상
+          </label>
         </div>
-      )}
+      </div>
+    )}
 
-      {selectedIndicator === "StochRSI" && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <label className="text-white">K</label>
+    {selectedIndicator === "StochRSI" && (
+      <div className="flex flex-col gap-2 text-white">
+        <div className="flex items-center gap-3">
+          <label>K</label>
           <input
             type="number"
             placeholder="값"
@@ -165,15 +209,11 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
                 ...prev,
                 type: "StochRSI",
                 k: Number(e.target.value),
-                operator: selectedDirection === "LONG" ? "이하" : "이상",
               }))
             }
             className="px-2 py-1 rounded bg-gray-700 text-gray-300"
           />
-          <span className="text-white text-sm">
-            {selectedDirection === "LONG" ? "이하" : "이상"}
-          </span>
-          <label className="text-white ml-4">D</label>
+          <label className="ml-4">D</label>
           <input
             type="number"
             placeholder="값"
@@ -186,7 +226,40 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
             className="px-2 py-1 rounded bg-gray-700 text-gray-300"
           />
         </div>
-      )}
+        <div className="flex gap-4 items-center mt-2">
+          <label className="flex items-center gap-1">
+            <input
+              type="radio"
+              name="stoch-operator"
+              value="이하"
+              checked={currentCondition.operator === "이하"}
+              onChange={() =>
+                setCurrentCondition((prev) => ({
+                  ...prev,
+                  operator: "이하",
+                }))
+              }
+            />
+            이하
+          </label>
+          <label className="flex items-center gap-1">
+            <input
+              type="radio"
+              name="stoch-operator"
+              value="이상"
+              checked={currentCondition.operator === "이상"}
+              onChange={() =>
+                setCurrentCondition((prev) => ({
+                  ...prev,
+                  operator: "이상",
+                }))
+              }
+            />
+            이상
+          </label>
+        </div>
+      </div>
+    )}
 
       {selectedIndicator === "VWBB" && (
         <div className="flex gap-4 text-white">
