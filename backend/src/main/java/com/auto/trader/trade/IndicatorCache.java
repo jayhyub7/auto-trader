@@ -14,5 +14,5 @@ public class IndicatorCache {
     private final List<IndicatorUtil.IndicatorPoint> rsi;
     private final List<IndicatorUtil.DualIndicatorPoint> stochRsi;
     private final IndicatorUtil.VWBB vwbb;
-
+    private double currentPrice;
 }

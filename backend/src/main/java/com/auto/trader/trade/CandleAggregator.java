@@ -53,7 +53,6 @@ public class CandleAggregator {
                 if (current != null) {
                     candles.add(current);
                     if (candles.size() > 500) candles.remove(0);
-                    indicatorCalculator.calculateAndStore(symbol, tf, new ArrayList<>(candles));
                 }
 
                 // 새 캔들 시작
@@ -65,15 +64,27 @@ public class CandleAggregator {
                 newCandle.setClose(price);
                 newCandle.setVolume(1);
                 currentCandleMap.put(tf, newCandle);
+
+                // ✅ 현재 newCandle 포함해서 지표 계산
+                List<CandleDto> fullList = new ArrayList<>(candles);
+                fullList.add(newCandle);
+                indicatorCalculator.calculateAndStore(symbol, tf, fullList);
+
             } else {
                 // 기존 캔들 업데이트
                 current.setClose(price);
                 current.setHigh(Math.max(current.getHigh(), price));
                 current.setLow(Math.min(current.getLow(), price));
                 current.setVolume(current.getVolume() + 1);
+
+                // ✅ 현재 current 포함해서 지표 실시간 계산
+                List<CandleDto> fullList = new ArrayList<>(candles);
+                fullList.add(current);
+                indicatorCalculator.calculateAndStore(symbol, tf, fullList);
             }
         }
     }
+
 
     private List<CandleDto> loadInitialCandles(String symbol, String timeframe) {
         try {

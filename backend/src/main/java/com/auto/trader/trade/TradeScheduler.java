@@ -1,10 +1,6 @@
 package com.auto.trader.trade;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -12,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.auto.trader.position.entity.Position;
 import com.auto.trader.position.entity.PositionOpen;
+import com.auto.trader.position.enums.Operator;
 import com.auto.trader.position.enums.Timeframe;
 import com.auto.trader.position.service.PositionOpenService;
 import com.auto.trader.position.service.PositionService;
@@ -28,73 +25,95 @@ public class TradeScheduler {
     private final PositionService positionService;
     private final PositionOpenService positionOpenService;
     private final ObjectMapper objectMapper;  
-    
+
     @Scheduled(fixedDelay = 1000)
     @Transactional
     public void checkAndExecuteTrades() {
-        //log.info("🔁 포지션 조건 확인 중...");
-    	
         List<Position> activePositions = positionOpenService.findEnabledPositionsWithOpen();
         for (Position p : activePositions) {
             p.getConditions().size(); // 강제 초기화
         }
 
-        //log.info("✅ 활성화된 포지션 수: {}", activePositions.size());
-
         for (Position position : activePositions) {
-        	logPositionDetails(position);
-        	// 현재 1개만 등록이 가능하게 되어 있다. 추후 변경될 수도 있음.
-        	PositionOpen positionOpen = position.getPositionOpenList().get(0);
+            logPositionDetails(position);
+            PositionOpen positionOpen = position.getPositionOpenList().get(0);
+            boolean isPass = true; 
+
             try {
                 for (var cond : position.getConditions()) {
-                	
-                	Timeframe timeframe = cond.getTimeframe();  // 예: "1m"
-                	//System.out.println(timeframe.getLabel());
+                    Timeframe timeframe = cond.getTimeframe();
                     String key = "BTCUSDT_" + timeframe.getLabel();
                     IndicatorCache cache = IndicatorMemoryStore.get(key);                    
-                    
+
                     if (cache == null) {
                         log.warn("⚠️ 지표 캐시 없음: {}", key);
-                        continue;
+                        isPass = false;
+                        break;
                     }
+
+                    var operator = cond.getOperator();
+                    var direction = cond.getDirection();
 
                     switch (cond.getType()) {
                         case RSI -> {
+                            var value = cond.getValue();
                             var rsiList = cache.getRsi();
                             if (!rsiList.isEmpty()) {
                                 var latest = rsiList.get(rsiList.size() - 1);
-                                
-                                //log.info("📊 [RSI][{}] 조건 ID {} → 현재값: {}", timeframe, cond.getId(), latest.getValue());
+                                if (operator == Operator.이상 && latest.getValue() < value) isPass = false;
+                                if (operator == Operator.이하 && latest.getValue() > value) isPass = false;
+                            } else {
+                                isPass = false;
                             }
                         }
                         case StochRSI -> {
+                            var value = cond.getValue();
+                            var kTarget = cond.getK();
+                            var dTarget = cond.getD();
                             var stochList = cache.getStochRsi();
                             if (!stochList.isEmpty()) {
                                 var latest = stochList.get(stochList.size() - 1);
-                                //log.info("📊 [StochRSI][{}] 조건 ID {} → K: {}, D: {}", timeframe, cond.getId(), latest.getK(), latest.getD());
+                                double currentK = latest.getK();
+                                double currentD = latest.getD();
+
+                                // 기준값 비교
+                                if (operator == Operator.이상 && currentK < value) isPass = false;
+                                if (operator == Operator.이하 && currentK > value) isPass = false;
+
+                                // 교차 조건: %K가 %D를 상향 돌파
+                                if (kTarget != null && dTarget != null) {
+                                    if (!(currentK > currentD && currentK - currentD >= 0.5)) {
+                                        isPass = false;
+                                    }
+                                }
+                            } else {
+                                isPass = false;
                             }
                         }
                         case VWBB -> {
                             var basis = cache.getVwbb().getBasis();
                             var upper = cache.getVwbb().getUpper();
                             var lower = cache.getVwbb().getLower();
-                            if (!basis.isEmpty() && !upper.isEmpty() && !lower.isEmpty()) {
-                            	/*
-                                log.info("📊 [VWBB][{}] 조건 ID {} → Basis: {}, Upper: {}, Lower: {}",
-                                        timeframe, cond.getId(),
-                                        basis.get(basis.size() - 1).getValue(),
-                                        upper.get(upper.size() - 1).getValue(),
-                                        lower.get(lower.size() - 1).getValue());
-                                        */
+                            double currentPrice = cache.getCurrentPrice(); // ✅ 현재가
+                            if (!basis.isEmpty()) {                            	
+                                double upperBand = upper.get(upper.size() - 1).getValue();
+                                double lowerBand = lower.get(lower.size() - 1).getValue();
+
+                                if (operator == Operator.이상 && currentPrice <= upperBand) isPass = false;
+                                if (operator == Operator.이하 && currentPrice >= lowerBand) isPass = false;
+                            } else {
+                                isPass = false;
                             }
                         }
                     }
+
+                    if (!isPass) {
+                        log.debug("❌ 조건 미달성, 다음 포지션으로");
+                        break;
+                    }
                 }
 
-                // 현재는 실제 조건 판단 대신 지표 로그만 출력 중
-                boolean shouldEnterTrade = false;
-
-                if (shouldEnterTrade) {
+                if (isPass) {
                     log.info("✅ 진입 조건 만족 → 매매 실행 예정: {}", position.getTitle());
                 }
 
@@ -102,7 +121,6 @@ public class TradeScheduler {
                 log.error("🚨 포지션 처리 중 오류: " + position.getId(), e);
             }
         }
-
     }
 
     private void logPositionDetails(Position position) {
