@@ -1,18 +1,22 @@
 package com.auto.trader.position.service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.auto.trader.domain.User;
 import com.auto.trader.position.dto.PositionDto;
+import com.auto.trader.position.dto.PositionOpenDetailDto;
 import com.auto.trader.position.dto.PositionOpenRequestDto;
 import com.auto.trader.position.entity.IndicatorCondition;
 import com.auto.trader.position.entity.Position;
 import com.auto.trader.position.entity.PositionOpen;
 import com.auto.trader.position.enums.AmountType;
 import com.auto.trader.position.enums.PositionOpenStatus;
+import com.auto.trader.position.mapper.PositionMapper;
 import com.auto.trader.position.repository.PositionOpenRepository;
 import com.auto.trader.position.repository.PositionRepository;
 
@@ -24,7 +28,8 @@ public class PositionOpenService {
 
     private final PositionRepository positionRepository;
     private final PositionOpenRepository positionOpenRepository;
-
+    private final PositionMapper positionMapper;
+    
     public List<PositionDto> getOpenPositionsForUser(User user) {
         List<Position> positions = positionRepository.findAllWithOpenByUser(user);
 
@@ -43,8 +48,6 @@ public class PositionOpenService {
                         .takeProfit(open.getTakeProfit())
                         .build();
                 }
-System.out.println("openDto : "  + openDto);
-System.out.println("openDto : "  + openDto);
 
                 // ✅ 여기서 return 필요!
                 return PositionDto.builder()
@@ -119,4 +122,45 @@ System.out.println("openDto : "  + openDto);
                 .conditionPhase(cond.getConditionPhase())
                 .build();
     }
+    
+    public List<Position> findEnabledPositionsWithOpen() {
+        List<Position> positions = positionRepository.findEnabledPositionsWithOpen();
+
+        return positions.stream()
+            .peek(p -> {
+                List<PositionOpen> filtered = p.getPositionOpenList().stream()
+                    .filter(o -> o.getStatus() == PositionOpenStatus.RUNNING || o.getStatus() == PositionOpenStatus.SIMULATING)
+                    .collect(Collectors.toList());
+                p.setPositionOpenList(filtered);
+            })
+            .filter(p -> !p.getPositionOpenList().isEmpty()) // 남은 open이 없으면 제외
+            .collect(Collectors.toList());
+    }
+    
+    public List<PositionOpenDetailDto> findEnabledDetails() {
+        List<Position> positions = positionRepository.findEnabledPositionsWithOpen();
+        return positions.stream()
+        	    .<PositionOpenDetailDto>map(pos -> {
+        	        PositionOpen open = pos.getPositionOpenList().isEmpty() ? null : pos.getPositionOpenList().get(0);
+        	        return positionMapper.toOpenDetailDto(pos, open);
+        	    })
+        	    .collect(Collectors.toList());
+
+    }
+    
+    @Transactional
+    public void deleteById(Long id, User user) {
+        PositionOpen open = positionOpenRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("포지션 오픈 정보 없음"));
+
+        if (!open.getPosition().getUser().getId().equals(user.getId())) {
+            throw new SecurityException("삭제 권한 없음");
+        }
+
+        positionOpenRepository.delete(open);
+    }
+    public Optional<PositionOpen> findById(Long id) {
+        return positionOpenRepository.findById(id);
+    }
+
 }

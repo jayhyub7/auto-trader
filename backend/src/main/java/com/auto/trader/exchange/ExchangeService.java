@@ -12,5 +12,5 @@ public interface ExchangeService {
     boolean supports(Exchange exchange);
     boolean validate(ApiKey key);
     List<BalanceDto> fetchBalances(ApiKey apiKey);
-    HttpHeaders buildHeaders(ApiKey apiKey); // ✅ 추가됨
+    HttpHeaders buildHeaders(ApiKey apiKey); // ✅ 추가됨    
 }

@@ -3,9 +3,12 @@ logging:
     root: INFO
     com.auto.trader: INFO
     org.springframework.web: INFO
-    org.hibernate.SQL: INFO
-    org.hibernate.type.descriptor.sql: TRACE
-
+    org.hibernate.SQL: OFF
+    org.hibernate.orm.jdbc.bind: OFF         # 바인딩 로그
+    org.hibernate.orm.jdbc.extract: OFF      # 결과 추출 로그
+    org.hibernate.sql.results.internal: OFF  # 결과 매핑 로그
+    org.hibernate.type.descriptor.sql: OFF
+    org.hibernate.stat: OFF
 
 spring:
   datasource:
@@ -17,7 +20,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     properties:
       hibernate:

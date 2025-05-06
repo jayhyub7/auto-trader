@@ -85,8 +85,8 @@ public abstract class AbstractExchangeService {
     }
 
     protected ResponseEntity<Map<String, Object>> getWithHeaders(String url, HttpHeaders headers) {
-        log.info("📤 요청 URL: {}", url);
-        log.info("📤 요청 헤더:");
+        log.debug("📤 요청 URL: {}", url);
+        log.debug("📤 요청 헤더:");
         headers.forEach((k, v) -> log.info("{}: {}", k, v));
 
         HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
@@ -97,7 +97,7 @@ public abstract class AbstractExchangeService {
             (Class<Map<String, Object>>) (Class<?>) Map.class
         );
 
-        log.info("📥 API 응답: {}", result.getBody());
+        log.debug("📥 API 응답: {}", result.getBody());
         return result;
     }
 }

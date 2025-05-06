@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { toast, ToastContainer } from "react-toastify"; // 반드시 import 필요
+import "react-toastify/dist/ReactToastify.css";
 
 interface AmountSelectorProps {
   maxAmount: number;
@@ -18,13 +20,23 @@ const AmountSelector: React.FC<AmountSelectorProps> = ({ maxAmount, onChange }) 
   }, [percent, maxAmount, onChange]);
 
   const handleAmountChange = (value: string) => {
+     
     const parsed = parseFloat(value);
     if (!isNaN(parsed)) {
-      setAmount(parsed);
-      setPercent(Math.round((parsed / maxAmount) * 100));
-      onChange(parsed);
+      if (parsed > maxAmount) {
+        toast.error(`사용 가능 금액(${maxAmount.toFixed(2)} USDT)을 초과할 수 없습니다.`);
+        const capped = +maxAmount.toFixed(4);
+        setAmount(capped);
+        setPercent(100);
+        onChange(capped);
+      } else {
+        setAmount(parsed);
+        setPercent(Math.round((parsed / maxAmount) * 100));
+        onChange(parsed);
+      }
     } else {
       setAmount(0);
+      setPercent(0);
       onChange(0);
     }
   };

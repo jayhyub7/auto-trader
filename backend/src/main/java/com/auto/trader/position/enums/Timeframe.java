@@ -1,24 +1,24 @@
 package com.auto.trader.position.enums;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum Timeframe {
 
-    @JsonProperty("1m")
-    ONE_MINUTE,
+    ONE_MINUTE("1m"),
+    THREE_MINUTE("3m"),
+    FIVE_MINUTE("5m"),
+    FIFTEEN_MINUTE("15m"),
+    ONE_HOUR("1h"),
+    FOUR_HOURS("4h");
 
-    @JsonProperty("3m")
-    THREE_MINUTE,
+    private final String label;
 
-    @JsonProperty("5m")
-    FIVE_MINUTE,
+    Timeframe(String label) {
+        this.label = label;
+    }
 
-    @JsonProperty("15m")
-    FIFTEEN_MINUTE,
-
-    @JsonProperty("1h") 
-    ONE_HOUR,
-
-    @JsonProperty("4h")
-    FOUR_HOURS
+    @JsonValue
+    public String getLabel() {
+        return label;
+    }
 }

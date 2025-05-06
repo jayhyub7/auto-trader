@@ -18,7 +18,7 @@ export interface IndicatorCondition {
   conditionPhase: ConditionPhase;
 }
 
-export type PositionOpenStatus = "idle" | "running" | "simulating" | "cancelled";
+export type PositionOpenStatus = "IDLE" | "RUNNING" | "SIMULATING" | "CANCELLED";
 
 export interface PositionOpenDto {
   id: number;
@@ -63,5 +63,16 @@ export const saveOrUpdatePositionOpen = async (
   } else {
     const res = await api.post<PositionOpenDto>("/position-open", payload);
     return res.data;
+  }
+};
+
+export const deletePositionOpen = async (positionOpenId: number) => {
+  try {
+    await api.delete(`/position-open/${positionOpenId}`);
+  } catch (error: any) {
+    if (error?.response?.status === 400) {
+      throw new Error("실행 중이거나 시뮬레이션 상태에서는 삭제할 수 없습니다.");
+    }
+    throw error;
   }
 };

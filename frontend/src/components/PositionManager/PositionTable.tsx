@@ -73,18 +73,18 @@ const PositionTable: React.FC<Props> = ({
                 )}
                 <td className="border border-gray-600 p-2">조건 {idx + 1}</td>
                 <td className="border border-gray-600 p-2">
-                  [{cond.direction}] {cond.timeframe} -{
-                    cond.type === "RSI"
+                  [{cond.direction}][{cond.type.toUpperCase()}] {cond.timeframe} -{ 
+                    cond.type.toLowerCase() === "rsi"
                       ? ` ${cond.value} ${cond.operator}`
-                      : cond.type === "StochRSI"
+                      : cond.type.toLowerCase() === "stochrsi"
                       ? `K ${cond.k} ${cond.operator} D ${cond.d} ${cond.operator}`
-                      : cond.type === "VWBB"
+                      : cond.type.toLowerCase() === "vwbb"
                       ? `${cond.operator}`
                       : ""
                   }
                 </td>
                 <td className="border border-gray-600 p-2 text-center">
-                  {cond.conditionPhase === "ENTRY" ? "진입" : "종료"}
+                  {cond.conditionPhase === "entry" ? "진입" : "종료"}
                 </td>
                 {idx === 0 && (
                   <>

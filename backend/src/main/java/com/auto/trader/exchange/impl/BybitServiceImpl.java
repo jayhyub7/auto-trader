@@ -52,6 +52,7 @@ public class BybitServiceImpl extends AbstractExchangeService implements Exchang
 
     protected List<BalanceDto> parseBalances(List<Map<String, Object>> rawBalances) {
         List<BalanceDto> result = new ArrayList<>();
+        System.out.println("rawBalances  :" + rawBalances);
 
         for (Map<String, Object> balanceMap : rawBalances) {
             Object coinObj = balanceMap.get("coin");
@@ -63,11 +64,14 @@ public class BybitServiceImpl extends AbstractExchangeService implements Exchang
 
                 Map<String, Object> coinMap = (Map<String, Object>) c;
                 String asset = (String) coinMap.get("coin");
-                double available = parseDouble(coinMap.get("walletBalance"));
+
+                double walletBalance = parseDouble(coinMap.get("walletBalance"));
+                double totalPositionIM = parseDouble(coinMap.get("totalPositionIM"));
+                double available = walletBalance - totalPositionIM;
                 double locked = 0.0;
                 double usdValue = parseDouble(coinMap.get("usdValue"));
 
-                BalanceDto dto = new BalanceDto(asset, available, locked, available, usdValue);
+                BalanceDto dto = new BalanceDto(asset, available, locked, walletBalance, usdValue);
                 if (dto.getTotal() > 0) {
                     result.add(dto);
                 }
@@ -76,6 +80,7 @@ public class BybitServiceImpl extends AbstractExchangeService implements Exchang
 
         return result;
     }
+
     
     private double parseDouble(Object value) {
         try {

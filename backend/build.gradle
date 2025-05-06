@@ -18,6 +18,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'io.github.cdimascio:dotenv-java:3.0.0'
+    implementation 'org.springframework:spring-websocket'
+    implementation 'org.springframework:spring-messaging'
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     annotationProcessor 'org.projectlombok:lombok'

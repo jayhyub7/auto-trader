@@ -29,7 +29,7 @@ export const handleAddCondition = ({
   setShowConditionBox,
   selectedPhase,
 }: Params) => {
- 
+  
   if (!selectedIndicator || !activePositionId) {
     toast.error("지표를 선택해주세요.");
     return;
