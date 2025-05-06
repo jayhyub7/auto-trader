@@ -12,37 +12,9 @@ import { v4 as uuidv4 } from "uuid";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { fetchPositions, savePositions, deletePosition  } from "@/service/positionManager";
+import { Direction, ConditionPhase, IndicatorType, VWBBOperator, IndicatorCondition, Position, IdMapping } from "@/service/positionManager";
 import { handleAddCondition } from "@/components/PositionManager/handleAddCondition";
 
-
-export type Direction = "LONG" | "SHORT";
-export type ConditionPhase = "ENTRY" | "EXIT";
-export type IndicatorType = "RSI" | "StochRSI" | "VWBB";
-export type VWBBOperator = "상단 돌파" | "하단 돌파";
-
-
-export interface IndicatorCondition {
-  type: "RSI" | "StochRSI";
-  value?: number;
-  k?: number;
-  d?: number;
-  operator: "이상" | "이하";
-  timeframe: Timeframe;
-  direction: "LONG" | "SHORT";
-}
-
-export interface Position {
-  id: string;
-  title: string;
-  exchange: Exchange;
-  conditions: IndicatorCondition[];
-  enabled: boolean;
-}
-
-export interface IdMapping {
-  tempId: number;   // 프론트 임시 ID
-  realId: number;   // 백엔드 실제 저장된 ID
-}
 
 const PositionManager = () => {
   const [showChart, setShowChart] = useState(true);

@@ -1,20 +1,26 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import AmountSelector from "@/components/AmountSelector";
 import {
   Position,
   PositionOpenPayload,
   PositionOpenStatus,
-} from "@/service/positionOpenService"; // ✅ 타입 통합 import
+  PositionOpenDto,
+} from "@/service/positionOpenService";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { Exchange } from "@/constants/Exchange"; // ⬅️ 꼭 import 필요
+
 
 interface PositionCardProps {
   position: Position;
   balance: number;
   status: PositionOpenStatus;
   onUpdateStatus: (
-    id: string,
+    id: number | undefined,
     status: PositionOpenStatus,
     payload: Omit<PositionOpenPayload, "status">
   ) => void;
+  openData?: PositionOpenDto;
 }
 
 const PositionCard: React.FC<PositionCardProps> = ({
@@ -22,11 +28,71 @@ const PositionCard: React.FC<PositionCardProps> = ({
   balance,
   status,
   onUpdateStatus,
+  openData,
 }) => {
-  const [takeProfit, setTakeProfit] = useState(0);
-  const [stopLoss, setStopLoss] = useState(0);
-  const [amountType, setAmountType] = useState<"fixed" | "percent">("fixed");
-  const [amount, setAmount] = useState(0);
+  const [takeProfit, setTakeProfit] = useState(openData?.takeProfit ?? 0);
+  const [stopLoss, setStopLoss] = useState(openData?.stopLoss ?? 0);
+  const [amountType, setAmountType] = useState<"fixed" | "percent">(openData?.amountType ?? "fixed");
+  const [amount, setAmount] = useState(openData?.amount ?? 0);
+  console.log('balance : ', balance)
+  console.log("balance keys:", Object.keys(balance));
+console.log("📌 position.exchange =", position.exchange);
+console.log("💰 total balance =", balance[position.exchange]?.total); // ✅ 이렇게 직접 접근
+  const exchangeEnumKey = Exchange[position.exchange as keyof typeof Exchange];
+  
+  const openId = openData?.id ?? position.open?.id;
+
+  useEffect(() => {
+    if (openData) {
+      setTakeProfit(openData.takeProfit ?? 0);
+      setStopLoss(openData.stopLoss);
+      setAmount(openData.amount);
+      setAmountType(openData.amountType);
+    }
+  }, [openData]);
+
+  const handleClick = (status: PositionOpenStatus) => {
+  // ✅ 진입 조건 필터링
+  const entryConditions = position.conditions.filter(c => c.conditionPhase === "ENTRY");
+
+  if (entryConditions.length === 0) {
+    toast.error("진입 조건이 없습니다. 조건을 먼저 설정해주세요.");
+    return;
+  }
+
+  if (!stopLoss || stopLoss <= 0) {
+    toast.error("Stop Loss는 필수입니다. 0보다 커야 합니다.");
+    return;
+  }
+
+  if (amount < 10) {
+    toast.error("금액은 최소 10 이상이어야 합니다.");
+    return;
+  }    
+    const payload: Omit<PositionOpenPayload, "status"> = {
+      id: openId,
+      positionId: position.id,
+      amount,
+      amountType,
+      stopLoss,
+      takeProfit,
+    };
+    console.log("🔥 [handleClick] 전송 payload:", payload);
+    onUpdateStatus(openId, status, payload);
+  };
+
+  const isStartable = status === "idle" || status === "cancelled";
+  const isRunning = status === "running";
+  const isSimulating = status === "simulating";
+
+  const statusColor =
+    status === "running"
+      ? "text-green-400"
+      : status === "simulating"
+      ? "text-blue-400"
+      : status === "cancelled"
+      ? "text-gray-400"
+      : "text-yellow-400";
 
   return (
     <div className="border border-gray-600 bg-gray-800 p-4 rounded-lg text-white">
@@ -104,65 +170,42 @@ const PositionCard: React.FC<PositionCardProps> = ({
           )}
         </div>
 
+       
         <div className="col-span-2 text-sm text-gray-400">
-          잔고: {balance.toLocaleString()} USDT
+        잔고: {balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
         </div>
+
+        
       </div>
 
       <div className="flex gap-3 items-center">
-        <span className="text-sm text-yellow-400">상태: {status}</span>
+        <span className={`text-sm ${statusColor}`}>상태: {status}</span>
 
         <button
-          disabled={status !== "idle"}
-          onClick={() =>
-            onUpdateStatus(position.id, "running", {
-              id: undefined,
-              positionId: position.id,
-              amount,
-              amountType,
-              stopLoss,
-              takeProfit,
-            })
-          }
+          disabled={!isStartable}
+          onClick={() => handleClick("running")}
           className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded text-sm"
         >
           실행
         </button>
 
         <button
-          disabled={status !== "idle"}
-          onClick={() =>
-            onUpdateStatus(position.id, "simulating", {
-              id: undefined,
-              positionId: position.id,
-              amount,
-              amountType,
-              stopLoss,
-              takeProfit,
-            })
-          }
+          disabled={!isStartable}
+          onClick={() => handleClick("simulating")}
           className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded text-sm"
         >
           시뮬레이션
         </button>
 
         <button
-          disabled={!(status === "running" || status === "simulating")}
-          onClick={() =>
-            onUpdateStatus(position.id, "cancelled", {
-              id: undefined,
-              positionId: position.id,
-              amount,
-              amountType,
-              stopLoss,
-              takeProfit,
-            })
-          }
+          disabled={!(isRunning || isSimulating)}
+          onClick={() => handleClick("cancelled")}
           className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded text-sm"
         >
           취소
         </button>
       </div>
+      <ToastContainer position="top-center" autoClose={3000} />
     </div>
   );
 };

@@ -26,6 +26,11 @@ export interface Position {
   enabled: boolean;
 }
 
+export interface IdMapping {
+  tempId: number;   // 프론트 임시 ID
+  realId: number;   // 백엔드 실제 저장된 ID
+}
+
 export const fetchPositions = async (): Promise<Position[]> => {
   const res = await api.get<Position[]>("/positions");
   return res.data;
@@ -33,12 +38,18 @@ export const fetchPositions = async (): Promise<Position[]> => {
 
 export const savePositions = async (positions: Position[]): Promise<IdMapping[]> => {
   const payload = positions.map(p => ({
-    id: isValidLong(p.id) ? Number(p.id) : null, // Long만 전송
-    tempId: p.id, // 프론트의 임시 ID
+    id: isValidLong(p.id) ? Number(p.id) : null,
+    tempId: p.id,
     title: p.title,
     exchange: p.exchange,
     enabled: p.enabled,
-    conditions: p.conditions,
+    conditions: p.conditions.map((c) => ({
+      ...c,
+      type: c.type.toLowerCase(),                    // ✅ 소문자 변환
+      direction: c.direction.toLowerCase(),          // ✅ 소문자 변환
+      conditionPhase: c.conditionPhase.toLowerCase() // ✅ 소문자 변환
+      // operator는 한글이므로 그대로 전송
+    }))
   }));
 
   const res = await api.post<IdMapping[]>("/positions", payload);

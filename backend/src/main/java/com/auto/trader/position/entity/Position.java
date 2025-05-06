@@ -44,7 +44,10 @@ public class Position extends BaseEntity  {
 
     @OneToMany(mappedBy = "position", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<IndicatorCondition> conditions = new ArrayList<>();
-
+    
+    @OneToMany(mappedBy = "position", fetch = FetchType.LAZY)
+    private List<PositionOpen> positionOpenList;
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;

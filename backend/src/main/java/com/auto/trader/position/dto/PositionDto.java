@@ -11,6 +11,7 @@ import com.auto.trader.position.enums.Timeframe;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -44,6 +45,19 @@ public class PositionDto {
         private Timeframe timeframe;
         private Direction direction;
         private ConditionPhase conditionPhase; 
+    }
+    
+    private PositionOpenDto open;
+    
+    @Data
+    @Builder
+    public static class PositionOpenDto {
+        private Long id;
+        private String status;
+        private String amountType;
+        private double amount;
+        private double stopLoss;
+        private Double takeProfit;
     }
 }
 

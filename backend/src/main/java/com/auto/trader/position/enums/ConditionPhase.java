@@ -1,6 +1,12 @@
 package com.auto.trader.position.enums;
 
+import com.fasterxml.jackson.annotation.JsonValue;
+
 public enum ConditionPhase {
-    ENTRY,  // 진입 조건
-    EXIT    // 종료 조건
+    ENTRY, EXIT;
+
+    @JsonValue
+    public String toJson() {
+        return name().toLowerCase();
+    }
 }
