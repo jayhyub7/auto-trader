@@ -25,154 +25,150 @@ const PositionTable: React.FC<Props> = ({
   setPositions,
 }) => {
   return (
-    <table className="w-full text-white mt-8 border border-gray-700">
-      <thead className="bg-gray-700">
-        <tr>
-          <th className="border border-gray-600 p-2">선택</th>
-          <th className="border border-gray-600 p-2">포지션 제목</th>
-          <th className="border border-gray-600 p-2">거래소</th>
-          <th className="border border-gray-600 p-2">조건</th>
-          <th className="border border-gray-600 p-2">내용</th>
-          <th className="border border-gray-600 p-2 text-center">조건유형</th>
-          <th className="border border-gray-600 p-2 text-center">조건추가</th>
-          <th className="border border-gray-600 p-2 text-center">사용여부</th>
-          <th className="border border-gray-600 p-2 text-center">조건삭제</th>
+// 📄 PositionTable.tsx - 전체 <table> 구조
+
+// 📄 PositionTable.tsx - <table> 전체 (방향 컬럼 추가 버전)
+
+<table className="w-full text-sm text-white border border-gray-600 mt-4">
+  <thead className="bg-gray-800 text-center">
+    <tr>
+      <th className="border border-gray-600 p-2">선택</th>
+      <th className="border border-gray-600 p-2">포지션 제목</th>
+      <th className="border border-gray-600 p-2">📊 방향</th> {/* ✅ 추가 */}
+      <th className="border border-gray-600 p-2">거래소</th>
+      <th className="border border-gray-600 p-2">조건</th>
+      <th className="border border-gray-600 p-2">내용</th>
+      <th className="border border-gray-600 p-2">조건유형</th>
+      <th className="border border-gray-600 p-2">조건 사용여부</th>
+      <th className="border border-gray-600 p-2">조건추가</th>
+      <th className="border border-gray-600 p-2">포지션 사용여부</th>
+      <th className="border border-gray-600 p-2">조건삭제</th>
+    </tr>
+  </thead>
+  <tbody>
+    {positions.map((pos) =>
+      pos.conditions.length === 0 ? (
+        <tr key={pos.id}>
+          <td className="border border-gray-600 p-2 text-center">
+            <input
+              type="checkbox"
+              checked={selectedPositionIds.has(pos.id)}
+              onChange={() => toggleSelectPosition(pos.id)}
+            />
+          </td>
+          <td className="border border-gray-600 p-2">
+            <input
+              type="text"
+              value={pos.title}
+              onChange={(e) => {
+                const newPositions = [...positions];
+                newPositions.find((p) => p.id === pos.id)!.title = e.target.value;
+                setPositions(newPositions);
+              }}
+              className="w-full bg-transparent text-white"
+            />
+          </td>
+          <td className="border border-gray-600 p-2 text-center text-sm">
+            <span className={pos.direction === "LONG" ? "text-green-400" : "text-red-400"}>
+              {pos.direction === "LONG" ? "📈 롱" : "📉 숏"}
+            </span>
+          </td>
+          <td className="border border-gray-600 p-2 text-center">
+            {EXCHANGE_LABELS[pos.exchange]}
+          </td>
+          {/* ... 이하 동일 ... */}
         </tr>
-      </thead>
-      <tbody>
-        {positions.map((pos) =>
-          pos.conditions.length > 0 ? (
-            pos.conditions.map((cond, idx) => (
-              <tr key={`${pos.id}-${idx}`} className="border-t border-gray-700">
-                {idx === 0 && (
-                  <>
-                    <td rowSpan={pos.conditions.length} className="border border-gray-600 p-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedPositionIds.has(pos.id)}
-                        onChange={() => toggleSelectPosition(pos.id)}
-                      />
-                    </td>
-                    <td rowSpan={pos.conditions.length} className="border border-gray-600 p-2">
-                      <input
-                        type="text"
-                        className="bg-transparent border border-gray-500 rounded px-2 py-1 w-full"
-                        value={pos.title ?? ""}
-                        onChange={(e) => {                                                     
-                          const newTitle = e.target.value;
-                          setPositions((prev) =>
-                            prev.map((p) => (p.id === pos.id ? { ...p, title: newTitle } : p))
-                          );
-                        }}
-                      />
-                    </td>
-                    <td rowSpan={pos.conditions.length} className="border border-gray-600 p-2">
-                      {EXCHANGE_LABELS[pos.exchange]}
-                    </td>
-                  </>
-                )}
-                <td className="border border-gray-600 p-2">조건 {idx + 1}</td>
-                <td className="border border-gray-600 p-2">
-                  [{cond.direction}][{cond.type.toUpperCase()}] {cond.timeframe} -{ 
-                    cond.type.toLowerCase() === "rsi"
-                      ? ` ${cond.value} ${cond.operator}`
-                      : cond.type.toLowerCase() === "stochrsi"
-                      ? `K ${cond.k} ${cond.operator} D ${cond.d} ${cond.operator}`
-                      : cond.type.toLowerCase() === "vwbb"
-                      ? `${cond.operator}`
-                      : ""
-                  }
+      ) : (
+        pos.conditions.map((cond, idx) => (
+          <tr key={idx}>
+            {idx === 0 && (
+              <>
+                <td rowSpan={pos.conditions.length} className="border border-gray-600 p-2 text-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedPositionIds.has(pos.id)}
+                    onChange={() => toggleSelectPosition(pos.id)}
+                  />
                 </td>
-                <td className="border border-gray-600 p-2 text-center">
-                  {cond.conditionPhase === "entry" ? "진입" : "종료"}
+                <td rowSpan={pos.conditions.length} className="border border-gray-600 p-2">
+                  <input
+                    type="text"
+                    value={pos.title}
+                    onChange={(e) => {
+                      const newPositions = [...positions];
+                      newPositions.find((p) => p.id === pos.id)!.title = e.target.value;
+                      setPositions(newPositions);
+                    }}
+                    className="w-full bg-transparent text-white"
+                  />
                 </td>
-                {idx === 0 && (
-                  <>
-                    <td rowSpan={pos.conditions.length} className="border border-gray-600 p-2 text-center">
-                      <button
-                        onClick={() => {
-                          setShowConditionBox(true);
-                          setActivePositionId(pos.id);
-                        }}
-                        className="px-2 py-1 text-xs bg-blue-600 rounded"
-                      >
-                        조건추가
-                      </button>
-                    </td>
-                    <td rowSpan={pos.conditions.length} className="border border-gray-600 p-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={pos.enabled}
-                        onChange={() => toggleEnabled(pos.id)}
-                      />
-                    </td>
-                  </>
-                )}
-                <td className="border border-gray-600 p-2 text-center">
-                  <button
-                    onClick={() => deleteCondition(pos.id, idx)}
-                    className="px-2 py-1 text-xs bg-red-600 rounded"
-                  >
-                    삭제
-                  </button>
+                <td rowSpan={pos.conditions.length} className="border border-gray-600 p-2 text-center text-sm">
+                  <span className={pos.direction === "LONG" ? "text-green-400" : "text-red-400"}>
+                    {pos.direction === "LONG" ? "📈 롱" : "📉 숏"}
+                  </span>
                 </td>
-              </tr>
-            ))
-          ) : (
-            <tr key={pos.id} className="border-t border-gray-700">
-              <td className="border border-gray-600 p-2 text-center">
-                <input
-                  type="checkbox"
-                  checked={selectedPositionIds.has(pos.id)}
-                  onChange={() => toggleSelectPosition(pos.id)}
-                />
-              </td>
-              <td className="border border-gray-600 p-2">
-                <input
-                  type="text"
-                  className="bg-transparent border border-gray-500 rounded px-2 py-1 w-full"
-                  value={pos.title ?? ""}
-                  onChange={(e) => {                                       
-                    const newTitle = e.target.value;
-                    setPositions((prev) =>
-                      prev.map((p) => (p.id === pos.id ? { ...p, title: newTitle } : p))
-                    );
-                  }}
-                />
-              </td>
-              <td className="border border-gray-600 p-2">{EXCHANGE_LABELS[pos.exchange]}</td>
-              <td className="border border-gray-600 p-2" colSpan={3}>조건 없음</td>
-              <td className="border border-gray-600 p-2 text-center">
+                <td rowSpan={pos.conditions.length} className="border border-gray-600 p-2 text-center">
+                  {EXCHANGE_LABELS[pos.exchange]}
+                </td>
+              </>
+            )}
+            <td className="border border-gray-600 p-2 text-center">조건 {idx + 1}</td>
+            <td className="border border-gray-600 p-2">
+              [{cond.type.toLowerCase()}] {cond.timeframe}{" "}
+              {cond.type === "RSI" && cond.value !== undefined
+                ? `${cond.operator} ${cond.value}`
+                : cond.type === "STOCHRSI"
+                ? `${cond.operator} K ${cond.k} D ${cond.d}`
+                : cond.operator}
+            </td>
+            <td className="border border-gray-600 p-2 text-center">
+              {cond.conditionPhase === "ENTRY" ? "진입" : "종료"}
+            </td>
+            <td className="border border-gray-600 p-2 text-center">
+              <input
+                type="checkbox"
+                checked={cond.enabled}
+                onChange={() => toggleConditionEnabled(pos.id, idx)}
+              />
+            </td>
+            {idx === 0 && (
+              <td rowSpan={pos.conditions.length} className="border border-gray-600 p-2 text-center">
                 <button
+                  className="text-xs bg-blue-600 px-2 py-1 rounded"
                   onClick={() => {
-                    setShowConditionBox(true);
                     setActivePositionId(pos.id);
+                    setShowConditionBox(true);
                   }}
-                  className="px-2 py-1 text-xs bg-blue-600 rounded"
                 >
                   조건추가
                 </button>
               </td>
-              <td className="border border-gray-600 p-2 text-center">
+            )}
+            {idx === 0 && (
+              <td rowSpan={pos.conditions.length} className="border border-gray-600 p-2 text-center">
                 <input
                   type="checkbox"
                   checked={pos.enabled}
                   onChange={() => toggleEnabled(pos.id)}
                 />
               </td>
-              <td className="border border-gray-600 p-2 text-center">
-                <button
-                  onClick={() => deleteCondition(pos.id)}
-                  className="px-2 py-1 text-xs bg-red-600 rounded"
-                >
-                  삭제
-                </button>
-              </td>
-            </tr>
-          )
-        )}
-      </tbody>
-    </table>
+            )}
+            <td className="border border-gray-600 p-2 text-center">
+              <button
+                onClick={() => deleteCondition(pos.id, idx)}
+                className="text-xs bg-red-600 px-2 py-1 rounded"
+              >
+                삭제
+              </button>
+            </td>
+          </tr>
+        ))
+      )
+    )}
+  </tbody>
+</table>
+
+
   );
 };
 

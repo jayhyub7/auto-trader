@@ -97,6 +97,7 @@ export const handleAddCondition = ({
     timeframe: selectedTimeframe,
     direction: selectedDirection,
     conditionPhase: selectedPhase,
+    enabled: true, // ✅ 조건은 기본적으로 활성화 상태로 추가
   } as IndicatorCondition;
 
   setPositions(

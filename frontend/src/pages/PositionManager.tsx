@@ -12,9 +12,8 @@ import { v4 as uuidv4 } from "uuid";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { fetchPositions, savePositions, deletePosition  } from "@/service/positionManager";
-import { Direction, ConditionPhase, IndicatorType, VWBBOperator, IndicatorCondition, Position, IdMapping } from "@/service/positionManager";
+import { ConditionPhase, IndicatorType, VWBBOperator, IndicatorCondition, Position, IdMapping, Direction } from "@/service/positionManagerService";
 import { handleAddCondition } from "@/components/PositionManager/handleAddCondition";
-
 
 const PositionManager = () => {
   const [showChart, setShowChart] = useState(true);
@@ -22,7 +21,7 @@ const PositionManager = () => {
   const [positions, setPositions] = useState<Position[]>([]);
   const [positionTitle, setPositionTitle] = useState("");
   const [selectedPositionIds, setSelectedPositionIds] = useState<Set<string>>(new Set());
-  const [selectedDirection, setSelectedDirection] = useState<"LONG" | "SHORT">("LONG");
+  const [selectedDirection, setSelectedDirection] = useState<Direction>("LONG");
   const [showConditionBox, setShowConditionBox] = useState(false);
   const [activePositionId, setActivePositionId] = useState<string | null>(null);
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>(Timeframe.ONE_MINUTE);
@@ -33,33 +32,41 @@ const PositionManager = () => {
   useEffect(() => { 
     const loadPositions = async () => {
       const result = await fetchPositions();
-      if (result) setPositions(result);
+      if (result) {
+        const updated = result.map(p => ({
+          ...p,
+          direction: p.direction || "LONG"
+        }));
+        setPositions(updated);
+      }
     };
     loadPositions();
   }, []);
 
-  const handleAddPosition = () => {
-    if (!selectedExchange) return toast.error("거래소를 선택해주세요.");
-    if (!positionTitle.trim()) return toast.error("포지션 제목을 입력해주세요.");
+  const handleAddPosition = (direction: "LONG" | "SHORT") => {
+    if (!selectedExchange) {
+      toast.warning("📛 거래소를 먼저 선택해주세요.");
+      return;
+    }
+  
     const newPosition: Position = {
       id: uuidv4(),
-      title: positionTitle,
-      exchange: selectedExchange as Exchange,
+      title: "",
+      direction,
+      exchange: selectedExchange,
       conditions: [],
       enabled: true,
     };
+  
     setPositions((prev) => [...prev, newPosition]);
-    setPositionTitle("");
   };
 
   const toggleSelectPosition = (id: string, force?: boolean) => {
     setSelectedPositionIds((prev) => {
       const newSet = new Set(prev);
       if (force === undefined) {
-        // 기존 토글 동작
         newSet.has(id) ? newSet.delete(id) : newSet.add(id);
       } else {
-        // 전체 선택/해제에서 사용
         force ? newSet.add(id) : newSet.delete(id);
       }
       return newSet;
@@ -68,11 +75,7 @@ const PositionManager = () => {
 
   const deleteSelectedPositions = async () => {
     const idsToDelete = Array.from(selectedPositionIds);
-  
-    // 각각 개별 삭제 요청
     await Promise.all(idsToDelete.map(id => deletePosition(id)));
-  
-    // 프론트 상태도 갱신
     setPositions(prev => prev.filter(p => !selectedPositionIds.has(p.id)));
     setSelectedPositionIds(new Set());
   };
@@ -98,17 +101,30 @@ const PositionManager = () => {
     );
   };
 
+  const toggleConditionEnabled = (positionId: string, conditionIndex: number) => {
+    setPositions((prev) =>
+      prev.map((p) =>
+        p.id === positionId
+          ? {
+              ...p,
+              conditions: p.conditions.map((cond, idx) =>
+                idx === conditionIndex ? { ...cond, enabled: !cond.enabled } : cond
+              ),
+            }
+          : p
+      )
+    );
+  };
+
   const handleSave = async () => {
     try {
-      const mappings = await savePositions(positions); // tempId → realId 목록
-  
+      const mappings = await savePositions(positions);
       setPositions((prev) =>
         prev.map((p) => {
           const match = mappings.find((m) => m.tempId === p.id);
           return match ? { ...p, id: match.realId } : p;
         })
       );
-  
       toast.success("저장 완료");
     } catch (err) {
       toast.error("저장 중 오류 발생");
@@ -149,19 +165,22 @@ const PositionManager = () => {
           onChange={(e) => setPositionTitle(e.target.value)}
           className="px-4 py-2 rounded bg-gray-800 text-white border border-gray-600 w-1/2 mx-4"
         />
+
+        
+
         {!showConditionBox && (
           <PositionControls
-            onAdd={handleAddPosition}
+            onAddLong={() => handleAddPosition("LONG")}
+            onAddShort={() => handleAddPosition("SHORT")}
             onDelete={deleteSelectedPositions}
             onSave={handleSave}
+            showConditionBox={showConditionBox}
           />
         )}
       </div>
 
       {showConditionBox && (
         <ConditionEditor
-          selectedDirection={selectedDirection}
-          setSelectedDirection={setSelectedDirection}
           selectedTimeframe={selectedTimeframe}
           setSelectedTimeframe={setSelectedTimeframe}
           selectedIndicator={selectedIndicator}
@@ -170,11 +189,11 @@ const PositionManager = () => {
           setCurrentCondition={setCurrentCondition}
           selectedPhase={selectedPhase}
           setSelectedPhase={setSelectedPhase}
-          activePositionId={activePositionId}         // ✅ 추가
-          positions={positions}                       // ✅ 추가
-          setPositions={setPositions}                 // ✅ 추가
-          setShowConditionBox={setShowConditionBox}   // ✅ 추가
-          handleAddCondition={handleAddCondition}     // ✅ 위치 중요 X
+          activePositionId={activePositionId}
+          positions={positions}
+          setPositions={setPositions}
+          setShowConditionBox={setShowConditionBox}
+          handleAddCondition={handleAddCondition}
         />
       )}
 
@@ -184,6 +203,7 @@ const PositionManager = () => {
         toggleSelectPosition={toggleSelectPosition}
         toggleEnabled={toggleEnabled}
         deleteCondition={deleteCondition}
+        toggleConditionEnabled={toggleConditionEnabled}
         setShowConditionBox={setShowConditionBox}
         setActivePositionId={setActivePositionId}
         setPositions={setPositions}

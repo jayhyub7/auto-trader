@@ -7,8 +7,7 @@ interface ConditionEditorProps {
   selectedDirection: Direction;
   selectedTimeframe: Timeframe;
   selectedIndicator: string;
-  currentCondition: Partial<IndicatorCondition>;
-  setSelectedDirection: (dir: Direction) => void;
+  currentCondition: Partial<IndicatorCondition>;  
   setSelectedTimeframe: (tf: Timeframe) => void;
   setSelectedIndicator: (type: string) => void;
   setCurrentCondition: (cond: Partial<IndicatorCondition>) => void;
@@ -21,8 +20,7 @@ interface ConditionEditorProps {
   handleAddCondition: (params: {
     selectedIndicator: string;
     activePositionId: string | null;
-    positions: Position[];
-    selectedDirection: Direction;
+    positions: Position[];    
     selectedTimeframe: Timeframe;
     currentCondition: Partial<IndicatorCondition>;
     setPositions: (positions: Position[]) => void;
@@ -51,19 +49,6 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
   setPositions,
 }) => {
 
-  // 👉 기본 operator 설정 useEffect
-  useEffect(() => {
-    if (
-      (selectedIndicator === "RSI" || selectedIndicator === "StochRSI") &&
-      !currentCondition.operator
-    ) {
-      setCurrentCondition((prev) => ({
-        ...prev,
-        operator: selectedDirection === "LONG" ? "이하" : "이상",
-      }));
-    }
-  }, [selectedIndicator, selectedDirection]);
-
   return (
     <div className="mt-6 border-2 border-gray-700 p-4 bg-gray-800 rounded-md relative">
       <div className="absolute top-4 right-4">
@@ -73,7 +58,6 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
               selectedIndicator,
               activePositionId,
               positions,
-              selectedDirection,
               selectedTimeframe,
               currentCondition,
               setPositions,
@@ -86,25 +70,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
         >
           조건 저장
         </button>
-      </div>
-
-      <div className="text-lg text-white mb-4 flex items-center gap-4">
-        <span>지표 설정</span>
-        <div className="flex gap-2">
-          <button
-            className={`px-2 py-1 rounded ${selectedDirection === "LONG" ? "bg-green-600" : "bg-gray-600"}`}
-            onClick={() => setSelectedDirection("LONG")}
-          >
-            롱
-          </button>
-          <button
-            className={`px-2 py-1 rounded ${selectedDirection === "SHORT" ? "bg-red-600" : "bg-gray-600"}`}
-            onClick={() => setSelectedDirection("SHORT")}
-          >
-            숏
-          </button>
-        </div>
-      </div>
+      </div>      
 
       <div className="flex gap-2 items-center mb-4 text-white">
         <span>조건 유형</span>

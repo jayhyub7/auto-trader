@@ -1,20 +1,15 @@
+// 📄 PositionControls.tsx - 약 10~30라인
+
 import React from "react";
 
 interface PositionControlsProps {
-  onAdd: () => void;
+  onAddLong: () => void;
+  onAddShort: () => void;
   onDelete: () => void;
   onSave: () => void;
-  showConditionBox: boolean; // 🔥 추가
 }
 
-const PositionControls: React.FC<PositionControlsProps> = ({
-  onAdd,
-  onDelete,
-  onSave,
-  showConditionBox, // 🔥 추가
-}) => {
-  if (showConditionBox) return null; // 🔥 조건 박스 보이면 숨김
-
+const PositionControls: React.FC<PositionControlsProps> = ({ onAddLong, onAddShort, onDelete, onSave }) => {
   return (
     <div className="flex justify-end gap-2 mb-4">
       <button
@@ -24,10 +19,16 @@ const PositionControls: React.FC<PositionControlsProps> = ({
         선택 삭제
       </button>
       <button
-        onClick={onAdd}
+        onClick={onAddLong}
         className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
       >
-        포지션 추가
+        📈 롱 포지션 추가
+      </button>
+      <button
+        onClick={onAddShort}
+        className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+      >
+        📉 숏 포지션 추가
       </button>
       <button
         onClick={onSave}
