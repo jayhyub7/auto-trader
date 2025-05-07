@@ -1,20 +1,21 @@
 package com.auto.trader.exchange.impl;
 
-import com.auto.trader.balance.dto.BalanceDto;
-import com.auto.trader.domain.ApiKey;
-import com.auto.trader.domain.Exchange;
-import com.auto.trader.exchange.AbstractExchangeService;
-import com.auto.trader.exchange.ExchangeService;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
+import com.auto.trader.balance.dto.BalanceDto;
+import com.auto.trader.domain.ApiKey;
+import com.auto.trader.domain.Exchange;
+import com.auto.trader.exchange.AbstractExchangeService;
+import com.auto.trader.exchange.ExchangeService;
+import com.auto.trader.exchange.dto.SignedRequest;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
@@ -32,10 +33,10 @@ public class BitgetServiceImpl extends AbstractExchangeService implements Exchan
     public List<BalanceDto> fetchBalances(ApiKey key) {
         try {
             String queryString = "symbol=BTCUSDT&productType=USDT-FUTURES&marginCoin=USDT";
-            String url = BASE_URL + ACCOUNT_PATH + "?" + queryString;
-            HttpHeaders headers = buildHeaders(ACCOUNT_PATH, key, queryString);
+            SignedRequest signed = buildSignedRequest(key, ACCOUNT_PATH, queryString);
+            String url = BASE_URL + ACCOUNT_PATH + "?" + signed.getQueryString();
 
-            ResponseEntity<Map<String, Object>> responseEntity = getWithHeaders(url, headers);
+            ResponseEntity<Map<String, Object>> responseEntity = getWithHeaders(url, signed.getHeaders());
             Map<String, Object> response = responseEntity.getBody();
 
             if (response == null || !response.containsKey("data")) return List.of();
@@ -57,10 +58,10 @@ public class BitgetServiceImpl extends AbstractExchangeService implements Exchan
     public boolean validate(ApiKey key) {
         try {
             String queryString = "symbol=BTCUSDT&productType=USDT-FUTURES&marginCoin=USDT";
-            String url = BASE_URL + ACCOUNT_PATH + "?" + queryString;
-            HttpHeaders headers = buildHeaders(ACCOUNT_PATH, key, queryString);
+            SignedRequest signed = buildSignedRequest(key, ACCOUNT_PATH, queryString);
+            String url = BASE_URL + ACCOUNT_PATH + "?" + signed.getQueryString();
 
-            getWithHeaders(url, headers);
+            getWithHeaders(url, signed.getHeaders());
             return true;
         } catch (Exception e) {
             log.error("❌ Bitget 인증 실패", e);
@@ -68,7 +69,8 @@ public class BitgetServiceImpl extends AbstractExchangeService implements Exchan
         }
     }
 
-    public HttpHeaders buildHeaders(String requestPath, ApiKey apiKey, String queryString) {
+    @Override
+    public SignedRequest buildSignedRequest(ApiKey apiKey, String path, String queryString) {
         try {
             String serverTimeUrl = BASE_URL + "/api/v2/public/time";
             Map<String, Object> timeResponse = getWithHeaders(serverTimeUrl, new HttpHeaders()).getBody();
@@ -79,14 +81,8 @@ public class BitgetServiceImpl extends AbstractExchangeService implements Exchan
             String timestamp = String.valueOf(((Map<String, Object>) timeResponse.get("data")).get("serverTime"));
             String method = "GET";
             String body = "";
-            String preHash = timestamp + method + requestPath + "?" + queryString;
-
+            String preHash = timestamp + method + path + "?" + queryString;
             String sign = hmacSha256WithBase64Encoding(preHash, apiKey.getSecretKey().trim());
-
-            log.info("🧾 preHash: {}", preHash);
-            log.info("🧾 ACCESS-SIGN: {}", sign);
-            log.info("🧾 queryString (raw): '{}'", queryString);
-            log.info("🧾 requestPath: '{}'", requestPath);
 
             HttpHeaders headers = new HttpHeaders();
             headers.set("ACCESS-KEY", apiKey.getApiKey());
@@ -95,14 +91,10 @@ public class BitgetServiceImpl extends AbstractExchangeService implements Exchan
             headers.set("ACCESS-PASSPHRASE", apiKey.getPassphrase());
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-            return headers;
+
+            return new SignedRequest(headers, queryString);
         } catch (Exception e) {
             throw new RuntimeException("❌ Bitget Header 생성 실패", e);
         }
-    }
-
-    @Override
-    public HttpHeaders buildHeaders(ApiKey apiKey) {
-        return null;
     }
 }

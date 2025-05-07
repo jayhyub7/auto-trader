@@ -24,7 +24,7 @@ public class TradeScheduler {
 
     private final PositionService positionService;
     private final PositionOpenService positionOpenService;
-    private final ObjectMapper objectMapper;  
+    private final ObjectMapper objectMapper;
 
     @Scheduled(fixedDelay = 1000)
     @Transactional
@@ -37,13 +37,13 @@ public class TradeScheduler {
         for (Position position : activePositions) {
             logPositionDetails(position);
             PositionOpen positionOpen = position.getPositionOpenList().get(0);
-            boolean isPass = true; 
+            boolean isPass = true;
 
             try {
                 for (var cond : position.getConditions()) {
                     Timeframe timeframe = cond.getTimeframe();
                     String key = "BTCUSDT_" + timeframe.getLabel();
-                    IndicatorCache cache = IndicatorMemoryStore.get(key);                    
+                    IndicatorCache cache = IndicatorMemoryStore.get(key);
 
                     if (cache == null) {
                         log.warn("⚠️ 지표 캐시 없음: {}", key);
@@ -52,56 +52,103 @@ public class TradeScheduler {
                     }
 
                     var operator = cond.getOperator();
-                    var direction = cond.getDirection();
 
                     switch (cond.getType()) {
                         case RSI -> {
                             var value = cond.getValue();
                             var rsiList = cache.getRsi();
+
                             if (!rsiList.isEmpty()) {
                                 var latest = rsiList.get(rsiList.size() - 1);
-                                if (operator == Operator.이상 && latest.getValue() < value) isPass = false;
-                                if (operator == Operator.이하 && latest.getValue() > value) isPass = false;
+                                double currentRsi = latest.getValue();
+                                log.debug("🧪 RSI 검사 | 현재: {}, 기준: {}, 연산자: {}", currentRsi, value, operator);
+
+                                if (operator == Operator.이상) {
+                                    if (currentRsi < value) {
+                                        log.debug("❌ RSI 실패: {} < {}", currentRsi, value);
+                                        isPass = false;
+                                    } else {
+                                        log.debug("✅ RSI 통과");
+                                    }
+                                }
+
+                                if (operator == Operator.이하) {
+                                    if (currentRsi > value) {
+                                        log.debug("❌ RSI 실패: {} > {}", currentRsi, value);
+                                        isPass = false;
+                                    } else {
+                                        log.debug("✅ RSI 통과");
+                                    }
+                                }
                             } else {
+                                log.warn("⚠️ RSI 리스트 비어 있음");
                                 isPass = false;
                             }
                         }
+
                         case StochRSI -> {
                             var value = cond.getValue();
                             var kTarget = cond.getK();
                             var dTarget = cond.getD();
                             var stochList = cache.getStochRsi();
+
                             if (!stochList.isEmpty()) {
                                 var latest = stochList.get(stochList.size() - 1);
                                 double currentK = latest.getK();
                                 double currentD = latest.getD();
+                                log.debug("🧪 StochRSI 검사 | K: {}, D: {}, 기준: {}, 연산자: {}", currentK, currentD, value, operator);
 
-                                // 기준값 비교
-                                if (operator == Operator.이상 && currentK < value) isPass = false;
-                                if (operator == Operator.이하 && currentK > value) isPass = false;
+                                if (operator == Operator.이상 && currentK < value) {
+                                    log.debug("❌ StochRSI 실패: {} < {}", currentK, value);
+                                    isPass = false;
+                                } else if (operator == Operator.이하 && currentK > value) {
+                                    log.debug("❌ StochRSI 실패: {} > {}", currentK, value);
+                                    isPass = false;
+                                } else {
+                                    log.debug("✅ K값 조건 통과");
+                                }
 
-                                // 교차 조건: %K가 %D를 상향 돌파
                                 if (kTarget != null && dTarget != null) {
-                                    if (!(currentK > currentD && currentK - currentD >= 0.5)) {
+                                    if (currentK > currentD && currentK - currentD >= 0.5) {
+                                        log.debug("✅ 교차 조건 통과 (%K > %D)");
+                                    } else {
+                                        log.debug("❌ 교차 조건 실패 (%K={}, %D={}, 차이={})", currentK, currentD, currentK - currentD);
                                         isPass = false;
                                     }
                                 }
                             } else {
+                                log.warn("⚠️ StochRSI 리스트 비어 있음");
                                 isPass = false;
                             }
                         }
+
                         case VWBB -> {
                             var basis = cache.getVwbb().getBasis();
                             var upper = cache.getVwbb().getUpper();
                             var lower = cache.getVwbb().getLower();
-                            double currentPrice = cache.getCurrentPrice(); // ✅ 현재가
-                            if (!basis.isEmpty()) {                            	
+                            double currentPrice = cache.getCurrentPrice();
+
+                            if (!basis.isEmpty()) {
                                 double upperBand = upper.get(upper.size() - 1).getValue();
                                 double lowerBand = lower.get(lower.size() - 1).getValue();
 
-                                if (operator == Operator.이상 && currentPrice <= upperBand) isPass = false;
-                                if (operator == Operator.이하 && currentPrice >= lowerBand) isPass = false;
+                                log.debug("🧪 VWBB 검사 | 현재가: {}, 상단: {}, 하단: {}, 연산자: {}", currentPrice, upperBand, lowerBand, operator);
+
+                                if (operator == Operator.이상 && currentPrice <= upperBand) {
+                                    log.debug("❌ 상단 조건 실패 ({} <= {})", currentPrice, upperBand);
+                                    isPass = false;
+                                } else if (operator == Operator.이상) {
+                                    log.debug("✅ 상단 조건 통과");
+                                }
+
+                                if (operator == Operator.이하 && currentPrice >= lowerBand) {
+                                    log.debug("❌ 하단 조건 실패 ({} >= {})", currentPrice, lowerBand);
+                                    isPass = false;
+                                } else if (operator == Operator.이하) {
+                                    log.debug("✅ 하단 조건 통과");
+                                }
                             } else {
+                                log.warn("⚠️ VWBB 기준선 없음");
                                 isPass = false;
                             }
                         }
@@ -168,8 +215,8 @@ public class TradeScheduler {
                 }
             }
             logMap.put("positionOpenList", openList);
-
-            log.info("📋 포지션 정보 (JSON):\n{}", objectMapper.writeValueAsString(logMap));
+ 
+            log.info("📋 포지션 정보 (JSON):{}", objectMapper.writeValueAsString(logMap));
 
         } catch (Exception e) {
             log.error("🚨 JSON 로그 변환 실패: {}", position.getId(), e);

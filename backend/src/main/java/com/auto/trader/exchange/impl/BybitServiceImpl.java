@@ -1,4 +1,3 @@
-
 package com.auto.trader.exchange.impl;
 
 import java.util.ArrayList;
@@ -14,6 +13,7 @@ import com.auto.trader.domain.ApiKey;
 import com.auto.trader.domain.Exchange;
 import com.auto.trader.exchange.AbstractExchangeService;
 import com.auto.trader.exchange.ExchangeService;
+import com.auto.trader.exchange.dto.SignedRequest;
 
 @Service
 public class BybitServiceImpl extends AbstractExchangeService implements ExchangeService {
@@ -29,8 +29,11 @@ public class BybitServiceImpl extends AbstractExchangeService implements Exchang
     @Override
     public List<BalanceDto> fetchBalances(ApiKey key) {
         try {
-            String url = BASE_URL + ACCOUNT_PATH + "?accountType=UNIFIED";
-            Map<String, Object> response = getWithHeaders(url, buildHeaders(key, "accountType=UNIFIED")).getBody();
+            String queryString = "accountType=UNIFIED";
+            SignedRequest signed = buildSignedRequest(key, ACCOUNT_PATH, queryString);
+            String url = BASE_URL + ACCOUNT_PATH + "?" + signed.getQueryString();
+
+            Map<String, Object> response = getWithHeaders(url, signed.getHeaders()).getBody();
             List<Map<String, Object>> rawBalances = (List<Map<String, Object>>) ((Map<String, Object>) response.get("result")).get("list");
             return parseBalances(rawBalances);
         } catch (Exception e) {
@@ -41,18 +44,19 @@ public class BybitServiceImpl extends AbstractExchangeService implements Exchang
     @Override
     public boolean validate(ApiKey key) {
         try {
-            String url = BASE_URL + ACCOUNT_PATH + "?accountType=UNIFIED";
-            Map<String, Object> response = getWithHeaders(url, buildHeaders(key, "accountType=UNIFIED")).getBody();           
+            String queryString = "accountType=UNIFIED";
+            SignedRequest signed = buildSignedRequest(key, ACCOUNT_PATH, queryString);
+            String url = BASE_URL + ACCOUNT_PATH + "?" + signed.getQueryString();
+
+            getWithHeaders(url, signed.getHeaders());
             return true;
         } catch (Exception e) {
-            System.out.println("Bybit validate failed: " + e.getMessage());
             return false;
         }
     }
 
     protected List<BalanceDto> parseBalances(List<Map<String, Object>> rawBalances) {
         List<BalanceDto> result = new ArrayList<>();
-        System.out.println("rawBalances  :" + rawBalances);
 
         for (Map<String, Object> balanceMap : rawBalances) {
             Object coinObj = balanceMap.get("coin");
@@ -81,7 +85,6 @@ public class BybitServiceImpl extends AbstractExchangeService implements Exchang
         return result;
     }
 
-    
     private double parseDouble(Object value) {
         try {
             return value != null ? Double.parseDouble(value.toString()) : 0.0;
@@ -89,10 +92,10 @@ public class BybitServiceImpl extends AbstractExchangeService implements Exchang
             return 0.0;
         }
     }
-    
-    public HttpHeaders buildHeaders(ApiKey apiKey, String queryString) {
+
+    @Override
+    public SignedRequest buildSignedRequest(ApiKey apiKey, String path, String queryString) {
         try {
-            // 1. Bybit 서버 시간 조회
             String timeUrl = BASE_URL + "/v5/market/time";
             Map<String, Object> timeResponse = getWithHeaders(timeUrl, new HttpHeaders()).getBody();
 
@@ -100,15 +103,13 @@ public class BybitServiceImpl extends AbstractExchangeService implements Exchang
                 throw new IllegalStateException("Bybit 서버 시간 응답이 잘못되었습니다.");
             }
 
-            long timestamp = Long.parseLong(timeResponse.get("time").toString()); // ms 단위
+            long timestamp = Long.parseLong(timeResponse.get("time").toString());
             String recvWindow = "10000";
             String qs = queryString != null ? queryString : "";
 
-            // 2. pre-hash 형식: timestamp + apiKey + recvWindow + queryString
             String payload = timestamp + apiKey.getApiKey() + recvWindow + qs;
             String signature = hmacSha256(payload, apiKey.getSecretKey());
 
-            // 3. 헤더 구성
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-BAPI-API-KEY", apiKey.getApiKey());
             headers.set("X-BAPI-SIGN", signature);
@@ -118,15 +119,9 @@ public class BybitServiceImpl extends AbstractExchangeService implements Exchang
             headers.setAccept(List.of(MediaType.APPLICATION_JSON));
             headers.setContentType(MediaType.APPLICATION_JSON);
 
-            return headers;
+            return new SignedRequest(headers, qs);
         } catch (Exception e) {
             throw new RuntimeException("❌ Bybit Header 생성 실패", e);
         }
     }
-    
-	@Override
-	public HttpHeaders buildHeaders(ApiKey apiKey) {
-		// TODO Auto-generated method stub
-		return null;
-	}
 }

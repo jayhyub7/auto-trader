@@ -69,7 +69,7 @@ public class IndicatorScheduler {
                     List<IndicatorUtil.IndicatorPoint> rsi = IndicatorUtil.calculateRSI(candles, 14);
                     List<IndicatorUtil.DualIndicatorPoint> stoch = IndicatorUtil.calculateStochRSI(candles, 14, 3);
                     IndicatorUtil.VWBB vwbb = IndicatorUtil.calculateVWBB(candles, 20, 2);
-                    IndicatorCache cache = new IndicatorCache(candles, rsi, stoch, vwbb);
+                    IndicatorCache cache = new IndicatorCache(candles, rsi, stoch, vwbb, candles.get(candles.size() - 1).getClose());
                     IndicatorMemoryStore.put(SYMBOL + "_" + timeframe, cache);
 
                     log.debug("✅ [{}] 지표 갱신 완료: RSI {}, Stoch {}, VWBB.Basis {}",
