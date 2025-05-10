@@ -9,6 +9,7 @@ interface Props {
   toggleSelectPosition: (id: string) => void;
   toggleEnabled: (id: string) => void;
   deleteCondition: (positionId: string, conditionIndex?: number) => void;
+  toggleConditionEnabled: (positionId: string, conditionIndex: number) => void; 
   setShowConditionBox: (show: boolean) => void;
   setActivePositionId: (id: string | null) => void;
   setPositions: React.Dispatch<React.SetStateAction<Position[]>>;
@@ -20,6 +21,7 @@ const PositionTable: React.FC<Props> = ({
   toggleSelectPosition,
   toggleEnabled,
   deleteCondition,
+  toggleConditionEnabled,
   setShowConditionBox,
   setActivePositionId,
   setPositions,
@@ -114,10 +116,10 @@ const PositionTable: React.FC<Props> = ({
             )}
             <td className="border border-gray-600 p-2 text-center">조건 {idx + 1}</td>
             <td className="border border-gray-600 p-2">
-              [{cond.type.toLowerCase()}] {cond.timeframe}{" "}
+              [{cond.type}] {cond.timeframe}{" "}
               {cond.type === "RSI" && cond.value !== undefined
                 ? `${cond.operator} ${cond.value}`
-                : cond.type === "STOCHRSI"
+                : cond.type === "STOCH_RSI"
                 ? `${cond.operator} K ${cond.k} D ${cond.d}`
                 : cond.operator}
             </td>

@@ -52,7 +52,7 @@ const PositionCard: React.FC<PositionCardProps> = ({
 
   const handleClick = (status: PositionOpenStatus) => {
   // ✅ 진입 조건 필터링
-  const entryConditions = position.conditions.filter(c => c.conditionPhase === "entry");
+  const entryConditions = position.conditions.filter(c => c.conditionPhase === "ENTRY");
 
   if (entryConditions.length === 0) {
     toast.error("진입 조건이 없습니다. 조건을 먼저 설정해주세요.");
@@ -115,7 +115,7 @@ const PositionCard: React.FC<PositionCardProps> = ({
           {position.conditions.map((cond, idx) => (
             <li key={idx}>
               [{cond.direction}][{cond.type.toUpperCase()}] - {cond.timeframe} - {cond.operator} (
-              {cond.conditionPhase === "entry" ? "진입" : "종료"})
+              {cond.conditionPhase === "ENTRY" ? "진입" : "종료"})
             </li>
           ))}
         </ul>

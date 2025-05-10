@@ -7,6 +7,6 @@ public enum ConditionPhase {
 
     @JsonValue
     public String toJson() {
-        return name().toLowerCase();
+        return name();
     }
 }

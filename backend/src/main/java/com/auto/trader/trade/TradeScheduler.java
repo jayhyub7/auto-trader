@@ -86,7 +86,7 @@ public class TradeScheduler {
                             }
                         }
 
-                        case StochRSI -> {
+                        case STOCH_RSI -> {
                             var value = cond.getValue();
                             var kTarget = cond.getK();
                             var dTarget = cond.getD();
@@ -216,7 +216,7 @@ public class TradeScheduler {
             }
             logMap.put("positionOpenList", openList);
  
-            log.info("📋 포지션 정보 (JSON):{}", objectMapper.writeValueAsString(logMap));
+            log.debug("📋 포지션 정보 (JSON):{}", objectMapper.writeValueAsString(logMap));
 
         } catch (Exception e) {
             log.error("🚨 JSON 로그 변환 실패: {}", position.getId(), e);

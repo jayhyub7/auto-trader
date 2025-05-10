@@ -11,6 +11,7 @@ import com.auto.trader.position.dto.PositionDto.IndicatorConditionDto;
 import com.auto.trader.position.entity.IndicatorCondition;
 import com.auto.trader.position.entity.Position;
 import com.auto.trader.position.repository.PositionRepository;
+import com.auto.trader.util.CommonUtil;
 
 import lombok.RequiredArgsConstructor;
 
@@ -77,6 +78,7 @@ public class PositionService {
                     .timeframe(cond.getTimeframe())
                     .direction(cond.getDirection())
                     .conditionPhase(cond.getConditionPhase())
+                    .enabled(cond.isEnabled())
                     .position(position)
                     .build())
                 .toList();
@@ -116,6 +118,7 @@ public class PositionService {
                 target.setTimeframe(dto.getTimeframe());
                 target.setDirection(dto.getDirection());
                 target.setConditionPhase(dto.getConditionPhase());
+                target.setEnabled(dto.isEnabled());
             } else {
                 IndicatorCondition newCond = IndicatorCondition.builder()
                     .type(dto.getType())
@@ -126,6 +129,7 @@ public class PositionService {
                     .timeframe(dto.getTimeframe())
                     .direction(dto.getDirection())
                     .conditionPhase(dto.getConditionPhase())
+                    .enabled(dto.isEnabled())
                     .position(position)
                     .build();
                 existing.add(newCond);
@@ -151,6 +155,7 @@ public class PositionService {
                         .timeframe(c.getTimeframe())
                         .direction(c.getDirection())
                         .conditionPhase(c.getConditionPhase())
+                        .enabled(c.getEnabled())
                         .build())
                     .toList()
             )

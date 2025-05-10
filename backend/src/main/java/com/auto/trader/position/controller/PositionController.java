@@ -16,6 +16,7 @@ import com.auto.trader.domain.User;
 import com.auto.trader.position.dto.PositionDto;
 import com.auto.trader.position.service.PositionService;
 import com.auto.trader.service.UserService;
+import com.auto.trader.util.CommonUtil;
 
 import lombok.RequiredArgsConstructor;
 
@@ -37,8 +38,7 @@ public class PositionController {
     @PostMapping
     public List<PositionDto> saveAll(
             @RequestBody List<PositionDto> positions,
-            @AuthenticationPrincipal OAuth2User principal) {
-
+            @AuthenticationPrincipal OAuth2User principal) {    	
         String email = principal.getAttribute("email");
         User user = userService.findByEmail(email)
             .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + email));

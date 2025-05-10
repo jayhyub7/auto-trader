@@ -5,29 +5,18 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum Operator {
 
-    이상("이상"),
-    이하("이하"),
-    상단_돌파("상단 돌파"),
-    하단_돌파("하단 돌파");
-
-    private final String label;
-
-    Operator(String label) {
-        this.label = label;
-    }
+    이상,
+    이하,
+    상단_돌파,
+    하단_돌파;
 
     @JsonValue
-    public String getLabel() {
-        return label;
+    public String toJson() {
+        return name(); // 그대로: "상단_돌파", "이상" 등
     }
 
     @JsonCreator
-    public static Operator fromLabel(String input) {
-        for (Operator op : values()) {
-            if (op.label.equals(input) || op.name().equalsIgnoreCase(input)) {
-                return op;
-            }
-        }
-        throw new IllegalArgumentException("Unknown operator: " + input);
+    public static Operator fromJson(String value) {
+        return Operator.valueOf(value);
     }
 }

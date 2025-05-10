@@ -45,6 +45,7 @@ public class PositionDto {
         private Timeframe timeframe;
         private Direction direction;
         private ConditionPhase conditionPhase; 
+        private boolean enabled; 
     }
     
     private PositionOpenDto open;

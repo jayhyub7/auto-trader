@@ -110,7 +110,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
       >
         <option value="">-- 지표 선택 --</option>
         <option value="RSI">RSI</option>
-        <option value="StochRSI">StochRSI</option>
+        <option value="STOCH_RSI">STOCH_RSI</option>
         <option value="VWBB">VWBB</option>
       </select>
 
@@ -163,7 +163,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
       </div>
     )}
 
-    {selectedIndicator === "StochRSI" && (
+    {selectedIndicator === "STOCH_RSI" && (
       <div className="flex flex-col gap-2 text-white">
         <div className="flex items-center gap-3">
           <label>K</label>
@@ -173,7 +173,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
             onChange={(e) =>
               setCurrentCondition((prev) => ({
                 ...prev,
-                type: "StochRSI",
+                type: "STOCH_RSI",
                 k: Number(e.target.value),
               }))
             }

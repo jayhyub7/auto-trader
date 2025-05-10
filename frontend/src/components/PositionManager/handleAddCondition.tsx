@@ -73,14 +73,14 @@ export const handleAddCondition = ({
     }
   }
 
-  if (selectedIndicator === "StochRSI") {
+  if (selectedIndicator === "STOCH_RSI") {
     if (
       currentCondition.k === undefined ||
       currentCondition.d === undefined ||
       isNaN(currentCondition.k) ||
       isNaN(currentCondition.d)
     ) {
-      toast.error("StochRSI의 K 또는 D 값이 입력되지 않았습니다.");
+      toast.error("STOCH_RSI의 K 또는 D 값이 입력되지 않았습니다.");
       return;
     }
   }

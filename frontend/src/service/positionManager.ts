@@ -4,7 +4,7 @@ import { Timeframe } from "@/constants/TimeFrame";
 
 export type Direction = "LONG" | "SHORT";
 export type ConditionPhase = "ENTRY" | "EXIT";
-export type IndicatorType = "RSI" | "StochRSI" | "VWBB";
+export type IndicatorType = "RSI" | "STOCH_RSI" | "VWBB";
 export type VWBBOperator = "상단_돌파" | "하단_돌파";
 
 export interface IndicatorCondition {
@@ -45,9 +45,9 @@ export const savePositions = async (positions: Position[]): Promise<IdMapping[]>
     enabled: p.enabled,
     conditions: p.conditions.map((c) => ({
       ...c,
-      type: c.type.toLowerCase(),                    // ✅ 소문자 변환
-      direction: c.direction.toLowerCase(),          // ✅ 소문자 변환
-      conditionPhase: c.conditionPhase.toLowerCase() // ✅ 소문자 변환
+      type: c.type,                    
+      direction: c.direction,         
+      conditionPhase: c.conditionPhase 
       // operator는 한글이므로 그대로 전송
     }))
   }));

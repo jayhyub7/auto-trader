@@ -132,7 +132,7 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
           setRsiData(rsi);
         }
 
-        if (indicators.includes("StochRSI")) {
+        if (indicators.includes("STOCH_RSI")) {
           const stoch = calculateStochRSI(formatted);
           setStochRsiData(stoch);
         }
@@ -196,7 +196,7 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
             setRsiData(rsi);
           }
 
-          if (indicators.includes("StochRSI")) {
+          if (indicators.includes("STOCH_RSI")) {
             const stoch = calculateStochRSI(candlesRef.current);
             setStochRsiData(stoch);
           }
@@ -238,7 +238,7 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
         ))}
       </div>
       <div className="absolute top-2 right-2 flex gap-2 z-10">
-        {["EMA", "SMA", "RSI", "StochRSI", "VWBB"].map((name) => (
+        {["EMA", "SMA", "RSI", "STOCH_RSI", "VWBB"].map((name) => (
           <button
             key={name}
             onClick={() => toggleIndicator(name)}
@@ -252,10 +252,10 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
       </div>
       {isLoading && <div className="text-white">? 로딩 중...</div>}
       <div ref={chartContainerRef} className="w-full h-[400px] border border-slate-600 rounded-md" />
-      {(indicators.includes("RSI") || indicators.includes("StochRSI")) && chartRef.current && (
+      {(indicators.includes("RSI") || indicators.includes("STOCH_RSI")) && chartRef.current && (
         <SubChart
           rsiData={indicators.includes("RSI") ? rsiData : []}
-          stochRsiData={indicators.includes("StochRSI") ? stochRsiData : []}
+          stochRsiData={indicators.includes("STOCH_RSI") ? stochRsiData : []}
           mainTimeScale={chartRef.current.timeScale()}
         />
       )}

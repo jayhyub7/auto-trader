@@ -4,7 +4,7 @@ import { Timeframe } from "@/constants/TimeFrame";
 
 export type Direction = "LONG" | "SHORT";
 export type ConditionPhase = "ENTRY" | "EXIT";
-export type IndicatorType = "RSI" | "StochRSI" | "VWBB";
+export type IndicatorType = "RSI" | "STOCH_RSI" | "VWBB";
 export type VWBBOperator = "상단_돌파" | "하단_돌파";
 
 export interface IndicatorCondition {

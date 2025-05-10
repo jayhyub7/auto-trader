@@ -7,6 +7,6 @@ public enum AmountType {
 
     @JsonValue
     public String toJson() {
-        return name().toLowerCase();
+        return name();
     }
 }

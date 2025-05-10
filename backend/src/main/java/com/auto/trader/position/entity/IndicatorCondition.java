@@ -7,6 +7,7 @@ import com.auto.trader.position.enums.IndicatorType;
 import com.auto.trader.position.enums.Operator;
 import com.auto.trader.position.enums.Timeframe;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -55,4 +56,7 @@ public class IndicatorCondition extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "position_id")
     private Position position;
+    
+    @Column(nullable = true)
+    private Boolean enabled = true;
 }
