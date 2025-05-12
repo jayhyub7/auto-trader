@@ -32,7 +32,7 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
   const candleSeriesRef = useRef<any>(null);
   const emaSeriesRef = useRef<any>(null);
   const smaSeriesRefs = useRef<Record<number, any>>({}); // period별 ref 저장용
-  const candlesRef = useRef<any[]>([]); 
+  const candlesRef = useRef<any[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [indicators, setIndicators] = useState<string[]>([]);
@@ -98,12 +98,16 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
         const mappedInterval = INTERVAL_MAP[currentInterval] || "1m"; // Timeframe을 사용하여 interval 값 가져오기
         const res = await fetch(`${API_URL}?symbol=BTCUSDT&interval=${mappedInterval}&limit=500`);
         const raw = await res.json();
+
+        const round = (v: number, decimals = 4) =>
+          Math.round(v * 10 ** decimals) / 10 ** decimals;
+
         const formatted = raw.map((d: any) => ({
           time: d[0] / 1000,
-          open: parseFloat(d[1]),
-          high: parseFloat(d[2]),
-          low: parseFloat(d[3]),
-          close: parseFloat(d[4]),
+          open: round(parseFloat(d[1])),
+          high: round(parseFloat(d[2])),
+          low: round(parseFloat(d[3])),
+          close: round(parseFloat(d[4])),
         }));
 
         candlesRef.current = formatted;
@@ -141,11 +145,11 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
           vwbbUpperSeriesRef.current = chart.addLineSeries({ color: "red" });
           vwbbLowerSeriesRef.current = chart.addLineSeries({ color: "blue" });
           vwbbBasisSeriesRef.current = chart.addLineSeries({ color: "orange" });
-        
+
           vwbbUpperSeriesRef.current.setData(vwbb.upper.filter(d => d.value !== null));
           vwbbLowerSeriesRef.current.setData(vwbb.lower.filter(d => d.value !== null));
           vwbbBasisSeriesRef.current.setData(vwbb.basis.filter(d => d.value !== null));
-        }        
+        }
       } catch (e) {
         console.error("데이터 로딩 실패", e);
       }
@@ -155,16 +159,19 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
     const startRealtimeUpdates = () => {
       intervalRef.current = setInterval(async () => {
         try {
+
           const mappedInterval = INTERVAL_MAP[currentInterval] || "1m";
           const res = await fetch(`${API_URL}?symbol=BTCUSDT&interval=${mappedInterval}&limit=2`);
           const raw = await res.json();
           const last = raw[raw.length - 1];
+          const round = (v: number, decimals = 4) =>
+            Math.round(v * 10 ** decimals) / 10 ** decimals;
           const newCandle = {
             time: last[0] / 1000,
-            open: parseFloat(last[1]),
-            high: parseFloat(last[2]),
-            low: parseFloat(last[3]),
-            close: parseFloat(last[4]),
+            open: round(parseFloat(last[1])),
+            high: round(parseFloat(last[2])),
+            low: round(parseFloat(last[3])),
+            close: round(parseFloat(last[4])),
           };
 
           const existing = candlesRef.current;
@@ -202,10 +209,11 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
           }
           if (indicators.includes("VWBB")) {
             const vwbb = calculateVWBB(candlesRef.current);
+
             vwbbUpperSeriesRef.current?.setData(vwbb.upper.filter(d => d.value !== null));
             vwbbLowerSeriesRef.current?.setData(vwbb.lower.filter(d => d.value !== null));
             vwbbBasisSeriesRef.current?.setData(vwbb.basis.filter(d => d.value !== null));
-          }          
+          }
         } catch (e) {
           console.error("실시간 캔들 갱신 실패", e);
         }

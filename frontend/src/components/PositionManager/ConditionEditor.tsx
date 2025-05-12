@@ -1,13 +1,21 @@
+// 📄 ConditionEditor.tsx
+
 import React, { useEffect } from "react";
 import { Timeframe, TIMEFRAME_LABELS } from "@/constants/TimeFrame";
-import { IndicatorCondition, Direction, ConditionPhase, IndicatorType, VWBBOperator } from "@/service/positionManager";
-
+import {
+  IndicatorCondition,  
+  ConditionPhase,
+  IndicatorType,
+  VWBBOperator,
+  IndicatorTypes,
+  ConditionPhases,
+  VWBBOperators,
+} from "@/service/positionManagerService";
 
 interface ConditionEditorProps {
-  selectedDirection: Direction;
   selectedTimeframe: Timeframe;
   selectedIndicator: string;
-  currentCondition: Partial<IndicatorCondition>;  
+  currentCondition: Partial<IndicatorCondition>;
   setSelectedTimeframe: (tf: Timeframe) => void;
   setSelectedIndicator: (type: string) => void;
   setCurrentCondition: (cond: Partial<IndicatorCondition>) => void;
@@ -20,7 +28,7 @@ interface ConditionEditorProps {
   handleAddCondition: (params: {
     selectedIndicator: string;
     activePositionId: string | null;
-    positions: Position[];    
+    positions: Position[];
     selectedTimeframe: Timeframe;
     currentCondition: Partial<IndicatorCondition>;
     setPositions: (positions: Position[]) => void;
@@ -32,11 +40,9 @@ interface ConditionEditorProps {
 }
 
 const ConditionEditor: React.FC<ConditionEditorProps> = ({
-  selectedDirection,
   selectedTimeframe,
   selectedIndicator,
   currentCondition,
-  setSelectedDirection,
   setSelectedTimeframe,
   setSelectedIndicator,
   setCurrentCondition,
@@ -48,11 +54,32 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
   positions,
   setPositions,
 }) => {
+  useEffect(() => {
+   
+    if (selectedIndicator === "VWBB") {
+      const isVWBBOperator = Object.values(VWBBOperators).includes(currentCondition.operator as VWBBOperator);
+      if (!isVWBBOperator) {        
+        setCurrentCondition((prev) => ({
+          ...prev,
+          type: IndicatorTypes.VWBB,
+          operator: VWBBOperators.UPPER, // "상단_돌파"
+        }));
+      }
+
+    } else if ((selectedIndicator === "RSI" || selectedIndicator === "STOCH_RSI") && !currentCondition.operator) {
+      setCurrentCondition((prev) => ({
+        ...prev,
+        operator: "이하",
+        type: selectedIndicator as any,
+      }));
+    }
+  }, [selectedIndicator]);  
 
   return (
     <div className="mt-6 border-2 border-gray-700 p-4 bg-gray-800 rounded-md relative">
       <div className="absolute top-4 right-4">
-        <button className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+        <button
+          className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
           onClick={() => {
             handleAddCondition({
               selectedIndicator,
@@ -70,19 +97,19 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
         >
           조건 저장
         </button>
-      </div>      
+      </div>
 
       <div className="flex gap-2 items-center mb-4 text-white">
         <span>조건 유형</span>
         <button
-          className={`px-2 py-1 rounded ${selectedPhase === "ENTRY" ? "bg-blue-600" : "bg-gray-600"}`}
-          onClick={() => setSelectedPhase("ENTRY")}
+          className={`px-2 py-1 rounded ${selectedPhase === ConditionPhases.ENTRY ? "bg-blue-600" : "bg-gray-600"}`}
+          onClick={() => setSelectedPhase(ConditionPhases.ENTRY)}
         >
           진입조건
         </button>
         <button
-          className={`px-2 py-1 rounded ${selectedPhase === "EXIT" ? "bg-blue-600" : "bg-gray-600"}`}
-          onClick={() => setSelectedPhase("EXIT")}
+          className={`px-2 py-1 rounded ${selectedPhase === ConditionPhases.EXIT ? "bg-blue-600" : "bg-gray-600"}`}
+          onClick={() => setSelectedPhase(ConditionPhases.EXIT)}
         >
           종료조건
         </button>
@@ -109,159 +136,120 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
         className="mb-4 px-2 py-1 rounded bg-gray-700 text-gray-300"
       >
         <option value="">-- 지표 선택 --</option>
-        <option value="RSI">RSI</option>
-        <option value="STOCH_RSI">STOCH_RSI</option>
-        <option value="VWBB">VWBB</option>
+        <option value={IndicatorTypes.RSI}>RSI</option>
+        <option value={IndicatorTypes.STOCH_RSI}>STOCH_RSI</option>
+        <option value={IndicatorTypes.VWBB}>VWBB</option>
       </select>
 
-      {selectedIndicator === "RSI" && (
-      <div className="flex items-center gap-3">
-        <input
-          type="number"
-          placeholder="값"
-          onChange={(e) =>
-            setCurrentCondition((prev) => ({
-              ...prev,
-              type: "RSI",
-              value: Number(e.target.value),
-            }))
-          }
-          className="px-2 py-1 rounded bg-gray-700 text-gray-300"
-        />
-        <div className="flex gap-2 items-center">
-          <label className="flex items-center gap-1">
-            <input
-              type="radio"
-              name="rsi-operator"
-              value="이하"
-              checked={currentCondition.operator === "이하"}
-              onChange={() =>
-                setCurrentCondition((prev) => ({
-                  ...prev,
-                  operator: "이하",
-                }))
-              }
-            />
-            이하
-          </label>
-          <label className="flex items-center gap-1">
-            <input
-              type="radio"
-              name="rsi-operator"
-              value="이상"
-              checked={currentCondition.operator === "이상"}
-              onChange={() =>
-                setCurrentCondition((prev) => ({
-                  ...prev,
-                  operator: "이상",
-                }))
-              }
-            />
-            이상
-          </label>
-        </div>
-      </div>
-    )}
-
-    {selectedIndicator === "STOCH_RSI" && (
-      <div className="flex flex-col gap-2 text-white">
+      {selectedIndicator === IndicatorTypes.RSI && (
         <div className="flex items-center gap-3">
-          <label>K</label>
           <input
             type="number"
             placeholder="값"
             onChange={(e) =>
               setCurrentCondition((prev) => ({
                 ...prev,
-                type: "STOCH_RSI",
-                k: Number(e.target.value),
+                type: IndicatorTypes.RSI,
+                value: Number(e.target.value),
               }))
             }
             className="px-2 py-1 rounded bg-gray-700 text-gray-300"
           />
-          <label className="ml-4">D</label>
-          <input
-            type="number"
-            placeholder="값"
-            onChange={(e) =>
-              setCurrentCondition((prev) => ({
-                ...prev,
-                d: Number(e.target.value),
-              }))
-            }
-            className="px-2 py-1 rounded bg-gray-700 text-gray-300"
-          />
-        </div>
-        <div className="flex gap-4 items-center mt-2">
-          <label className="flex items-center gap-1">
-            <input
-              type="radio"
-              name="stoch-operator"
-              value="이하"
-              checked={currentCondition.operator === "이하"}
-              onChange={() =>
-                setCurrentCondition((prev) => ({
-                  ...prev,
-                  operator: "이하",
-                }))
-              }
-            />
-            이하
-          </label>
-          <label className="flex items-center gap-1">
-            <input
-              type="radio"
-              name="stoch-operator"
-              value="이상"
-              checked={currentCondition.operator === "이상"}
-              onChange={() =>
-                setCurrentCondition((prev) => ({
-                  ...prev,
-                  operator: "이상",
-                }))
-              }
-            />
-            이상
-          </label>
-        </div>
-      </div>
-    )}
-
-      {selectedIndicator === "VWBB" && (
-        <div className="flex gap-4 text-white">
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="vwbb"
-              value="상단 돌파"
-              onChange={() =>
-                setCurrentCondition((prev) => ({
-                  ...prev,
-                  type: "VWBB",
-                  operator: "상단 돌파",
-                }))
-              }
-            />
-            상단 돌파
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="vwbb"
-              value="하단 돌파"
-              onChange={() =>
-                setCurrentCondition((prev) => ({
-                  ...prev,
-                  type: "VWBB",
-                  operator: "하단 돌파",
-                }))
-              }
-            />
-            하단 돌파
-          </label>
+          <div className="flex gap-2 items-center">
+            {["이하", "이상"].map((op) => (
+              <label key={op} className="flex items-center gap-1">
+                <input
+                  type="radio"
+                  name="rsi-operator"
+                  value={op}
+                  checked={currentCondition.operator === op}
+                  onChange={() =>
+                    setCurrentCondition((prev) => ({
+                      ...prev,
+                      operator: op,
+                    }))
+                  }
+                />
+                {op}
+              </label>
+            ))}
+          </div>
         </div>
       )}
 
+      {selectedIndicator === IndicatorTypes.STOCH_RSI && (
+        <div className="flex flex-col gap-2 text-white">
+          <div className="flex items-center gap-3">
+            <label>K</label>
+            <input
+              type="number"
+              placeholder="값"
+              onChange={(e) =>
+                setCurrentCondition((prev) => ({
+                  ...prev,
+                  type: IndicatorTypes.STOCH_RSI,
+                  k: Number(e.target.value),
+                }))
+              }
+              className="px-2 py-1 rounded bg-gray-700 text-gray-300"
+            />
+            <label className="ml-4">D</label>
+            <input
+              type="number"
+              placeholder="값"
+              onChange={(e) =>
+                setCurrentCondition((prev) => ({
+                  ...prev,
+                  d: Number(e.target.value),
+                }))
+              }
+              className="px-2 py-1 rounded bg-gray-700 text-gray-300"
+            />
+          </div>
+          <div className="flex gap-4 items-center mt-2">
+            {["이하", "이상"].map((op) => (
+              <label key={op} className="flex items-center gap-1">
+                <input
+                  type="radio"
+                  name="stoch-operator"
+                  value={op}
+                  checked={currentCondition.operator === op}
+                  onChange={() =>
+                    setCurrentCondition((prev) => ({
+                      ...prev,
+                      operator: op,
+                    }))
+                  }
+                />
+                {op}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selectedIndicator === IndicatorTypes.VWBB && (
+        <div className="flex gap-4 text-white">
+          {Object.values(VWBBOperators).map((op) => (
+            <label key={op} className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="vwbb"               
+                value={op}
+                checked={currentCondition.operator === op}
+                onChange={() =>
+                  setCurrentCondition((prev) => ({
+                    ...prev,
+                    type: IndicatorTypes.VWBB,
+                    operator: op,
+                  }))
+                }
+              />
+              {op}
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

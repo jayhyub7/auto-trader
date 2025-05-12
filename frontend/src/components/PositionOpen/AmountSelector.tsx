@@ -5,22 +5,27 @@ import "react-toastify/dist/ReactToastify.css";
 interface AmountSelectorProps {
   maxAmount: number;
   onChange: (amount: number) => void;
+  onPercentChange?: (percent: number) => void;
+  initialPercent?: number;
 }
 
 const quickPercents = [25, 50, 75, 100];
 
-const AmountSelector: React.FC<AmountSelectorProps> = ({ maxAmount, onChange }) => {
-  const [percent, setPercent] = useState(0);
+const AmountSelector: React.FC<AmountSelectorProps> = ({ maxAmount, onChange, onPercentChange, initialPercent }) => {
+  const [percent, setPercent] = useState(initialPercent ?? 0);
   const [amount, setAmount] = useState(0);
 
   useEffect(() => {
+    
     const calculated = +(maxAmount * (percent / 100)).toFixed(4);
     setAmount(calculated);
     onChange(calculated);
-  }, [percent, maxAmount, onChange]);
+    if (onPercentChange) {
+      onPercentChange(percent); // ✅ 비율도 전달
+    }
+  }, [percent, maxAmount, onChange, onPercentChange]);
 
   const handleAmountChange = (value: string) => {
-     
     const parsed = parseFloat(value);
     if (!isNaN(parsed)) {
       if (parsed > maxAmount) {
@@ -29,15 +34,19 @@ const AmountSelector: React.FC<AmountSelectorProps> = ({ maxAmount, onChange }) 
         setAmount(capped);
         setPercent(100);
         onChange(capped);
+        if (onPercentChange) onPercentChange(100);
       } else {
         setAmount(parsed);
-        setPercent(Math.round((parsed / maxAmount) * 100));
+        const newPercent = Math.round((parsed / maxAmount) * 100);
+        setPercent(newPercent);
         onChange(parsed);
+        if (onPercentChange) onPercentChange(newPercent);
       }
     } else {
       setAmount(0);
       setPercent(0);
       onChange(0);
+      if (onPercentChange) onPercentChange(0);
     }
   };
 
@@ -73,12 +82,14 @@ const AmountSelector: React.FC<AmountSelectorProps> = ({ maxAmount, onChange }) 
       </div>
 
       <div className="mt-4">
-        <label className="block mb-1 text-sm text-gray-300">금액 직접 입력</label>
+        <label className="block mb-1 text-sm text-gray-300">
+          비율 선택시 투입 금액은 사용가능 금액에 따라 변합니다.
+        </label>
         <input
-          type="number"
-          value={amount}
-          onChange={(e) => handleAmountChange(e.target.value)}
-          className="w-full bg-gray-700 text-white p-2 rounded"
+          type="text"
+          value={`(${percent}%) ${amount}`}
+          readOnly // ✅ readonly 속성은 boolean입니다
+          className="w-full bg-gray-800 text-white p-2 rounded"
         />
       </div>
 

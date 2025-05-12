@@ -1,0 +1,20 @@
+# 최상단 설정임을 명시
+root = true
+
+# 모든 파일 공통 설정
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Java 파일에만 적용
+[*.java]
+indent_size = 2
+max_line_length = 100
+
+# XML/HTML 파일 들여쓰기 2칸
+[*.{xml,html}]
+indent_size = 2

@@ -108,6 +108,57 @@ export const calculateStochRSI = (data: Candle[], period = 14, signalPeriod = 3)
 };
 
 // VWBB 계산
+// ✅ 프론트 VWBB 계산 (가중 이동평균 + 가중 표준편차 기반)
+export const calculateVWBB = (
+  candles: Candle[],
+  period = 20,
+  multiplier = 2,
+  volumeWeightRatio = 0.5 // ⬅️ 비율 조정값 추가
+): {
+  upper: LinePoint[];
+  lower: LinePoint[];
+  basis: LinePoint[];
+} => {
+  const vwma = candles.map((_, i) => {
+
+    if (i < period - 1) return null;
+    let volSum = 0;
+    let priceVolSum = 0;
+    for (let j = i - period + 1; j <= i; j++) {
+      const price = candles[j].close;
+      const volume = (candles[j].volume ?? 1) * volumeWeightRatio; // ⬅️ 비율 조정 적용
+      volSum += volume;
+      priceVolSum += price * volume;
+    }
+    return priceVolSum / volSum;
+  });
+
+  const std = candles.map((_, i) => {
+    if (i < period - 1 || vwma[i] == null) return null;
+    const mean = vwma[i]!;
+    const variance = candles
+      .slice(i - period + 1, i + 1)
+      .reduce((sum, d) => sum + Math.pow(d.close - mean, 2), 0) / period;
+    return Math.sqrt(variance);
+  });
+
+  return {
+    basis: vwma.map((v, i) => ({ time: candles[i].time, value: v })),
+    upper: vwma.map((v, i) =>
+      v == null || std[i] == null
+        ? { time: candles[i].time, value: null }
+        : { time: candles[i].time, value: v + multiplier * std[i]! }
+    ),
+    lower: vwma.map((v, i) =>
+      v == null || std[i] == null
+        ? { time: candles[i].time, value: null }
+        : { time: candles[i].time, value: v - multiplier * std[i]! }
+    ),
+  };
+};
+
+
+/*
 export const calculateVWBB = (candles: Candle[], period = 20, multiplier = 2): {
   upper: LinePoint[];
   lower: LinePoint[];
@@ -149,3 +200,4 @@ export const calculateVWBB = (candles: Candle[], period = 20, multiplier = 2): {
     ),
   };
 };
+*/

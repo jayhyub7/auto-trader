@@ -1,4 +1,6 @@
-import { IndicatorCondition } from "@/types/Position";
+// 📄 handleAddCondition.tsx
+
+import { IndicatorCondition, IndicatorTypes, ConditionPhases, Directions } from "@/service/positionManagerService";
 import { TIMEFRAME_LABELS } from "@/constants/TimeFrame";
 import { toast } from "react-toastify";
 
@@ -29,7 +31,6 @@ export const handleAddCondition = ({
   setShowConditionBox,
   selectedPhase,
 }: Params) => {
-  
   if (!selectedIndicator || !activePositionId) {
     toast.error("지표를 선택해주세요.");
     return;
@@ -38,10 +39,10 @@ export const handleAddCondition = ({
   const targetPosition = positions.find((p) => p.id === activePositionId);
   if (!targetPosition) return;
 
-  const existingDirection = targetPosition.conditions.find((c: any) => c.direction === "LONG")
-    ? "LONG"
-    : targetPosition.conditions.find((c: any) => c.direction === "SHORT")
-    ? "SHORT"
+  const existingDirection = targetPosition.conditions.find((c: any) => c.direction === Directions.LONG)
+    ? Directions.LONG
+    : targetPosition.conditions.find((c: any) => c.direction === Directions.SHORT)
+    ? Directions.SHORT
     : null;
 
   if (existingDirection && selectedDirection !== existingDirection) {
@@ -57,12 +58,13 @@ export const handleAddCondition = ({
   );
 
   if (isDuplicate) {
-    const phaseLabel = selectedPhase === "ENTRY" ? "진입조건" : "종료조건";
+    const phaseLabel = selectedPhase === ConditionPhases.ENTRY ? "진입조건" : "종료조건";
     toast.error(`${TIMEFRAME_LABELS[selectedTimeframe]} 분봉의 ${selectedIndicator} (${phaseLabel})은 이미 존재합니다.`);
     return;
   }
 
-  if (selectedIndicator === "RSI") {
+  // 유효성 검사
+  if (selectedIndicator === IndicatorTypes.RSI) {
     if (
       currentCondition.value === undefined ||
       currentCondition.value === null ||
@@ -73,7 +75,7 @@ export const handleAddCondition = ({
     }
   }
 
-  if (selectedIndicator === "STOCH_RSI") {
+  if (selectedIndicator === IndicatorTypes.STOCH_RSI) {
     if (
       currentCondition.k === undefined ||
       currentCondition.d === undefined ||
@@ -85,7 +87,7 @@ export const handleAddCondition = ({
     }
   }
 
-  if (selectedIndicator === "VWBB") {
+  if (selectedIndicator === IndicatorTypes.VWBB) {
     if (!currentCondition.operator) {
       toast.error("VWBB 조건 유형을 선택해주세요.");
       return;
@@ -97,7 +99,7 @@ export const handleAddCondition = ({
     timeframe: selectedTimeframe,
     direction: selectedDirection,
     conditionPhase: selectedPhase,
-    enabled: true, // ✅ 조건은 기본적으로 활성화 상태로 추가
+    enabled: true,
   } as IndicatorCondition;
 
   setPositions(

@@ -11,4 +11,5 @@ import com.auto.trader.position.entity.PositionOpen;
 public interface PositionOpenRepository extends JpaRepository<PositionOpen, Long> {
     Optional<PositionOpen> findByPosition(Position position);
     List<PositionOpen> findAllByPositionUserId(Long userId);
+    Optional<PositionOpen> findTopByPositionOrderByCreatedAtDesc(Position position);
 }

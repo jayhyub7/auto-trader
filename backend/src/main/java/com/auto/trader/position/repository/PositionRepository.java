@@ -10,7 +10,8 @@ import com.auto.trader.domain.User;
 import com.auto.trader.position.entity.Position;
 
 public interface PositionRepository extends JpaRepository<Position, Long> {
-	List<Position> findAllByUser(User user);
+	@Query("SELECT p FROM Position p LEFT JOIN FETCH p.positionOpenList WHERE p.user = :user")
+	List<Position> findAllByUserWithOpen(@Param("user") User user);
 	
 	@Query("""
 		    SELECT p FROM Position p

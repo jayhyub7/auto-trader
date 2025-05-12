@@ -1,5 +1,6 @@
 package com.auto.trader.adminkey.entity;
 
+import com.auto.trader.domain.BaseEntity;
 import com.auto.trader.domain.Exchange;
 
 import jakarta.persistence.Entity;
@@ -20,7 +21,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class AdminKey {
+public class AdminKey extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

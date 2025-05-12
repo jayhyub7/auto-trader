@@ -6,6 +6,7 @@ import java.util.List;
 import com.auto.trader.domain.BaseEntity;
 import com.auto.trader.domain.Exchange;
 import com.auto.trader.domain.User;
+import com.auto.trader.position.enums.Direction;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -39,6 +40,9 @@ public class Position extends BaseEntity  {
 
     @Enumerated(EnumType.STRING)
     private Exchange exchange;
+    
+    @Enumerated(EnumType.STRING)
+    private Direction direction; 
 
     private boolean enabled;
 

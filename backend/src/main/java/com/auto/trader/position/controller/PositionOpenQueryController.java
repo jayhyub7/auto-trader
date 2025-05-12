@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.auto.trader.domain.User;
 import com.auto.trader.position.dto.PositionDto;
-import com.auto.trader.position.dto.PositionOpenDto;
+
 import com.auto.trader.position.service.PositionOpenService;
 import com.auto.trader.service.UserService;
 

@@ -1,20 +1,22 @@
+// 📁 PositionCard.tsx
 import React, { useState, useEffect } from "react";
-import AmountSelector from "@/components/AmountSelector";
+import AmountSelector from "@/components/PositionOpen/AmountSelector";
 import {
   Position,
   PositionOpenPayload,
-  PositionOpenStatus,
   PositionOpenDto,
+  PositionOpenStatus,
+  PositionOpenStatuses,
 } from "@/service/positionOpenService";
+import { AmountTypes, AmountType } from "@/service/positionOpenService";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { Exchange } from "@/constants/Exchange"; // ⬅️ 꼭 import 필요
-
+import { Exchange } from "@/constants/Exchange";
 
 interface PositionCardProps {
   position: Position;
   balance: number;
-  available: number; 
+  available: number;
   status: PositionOpenStatus;
   onUpdateStatus: (
     id: number | undefined,
@@ -36,9 +38,10 @@ const PositionCard: React.FC<PositionCardProps> = ({
 }) => {
   const [takeProfit, setTakeProfit] = useState(openData?.takeProfit ?? 0);
   const [stopLoss, setStopLoss] = useState(openData?.stopLoss ?? 0);
-  const [amountType, setAmountType] = useState<"fixed" | "percent">(openData?.amountType ?? "fixed");
+  const [amountType, setAmountType] = useState<AmountType>(AmountTypes.FIXED);
   const [amount, setAmount] = useState(openData?.amount ?? 0);
-  
+  const [percent, setPercent] = useState(0); // 🔄 비율 저장용 상태
+
   const openId = openData?.id ?? position.open?.id;
 
   useEffect(() => {
@@ -46,52 +49,58 @@ const PositionCard: React.FC<PositionCardProps> = ({
       setTakeProfit(openData.takeProfit ?? 0);
       setStopLoss(openData.stopLoss);
       setAmount(openData.amount);
-      setAmountType(openData.amountType);
+      setAmountType(openData.amountType ?? AmountTypes.FIXED); // ✅ 여기 추가
+
+      // ✅ 비율 타입일 경우 percent 값도 초기화
+      if (openData.amountType === AmountTypes.PERCENT) {
+        setPercent(openData.amount); // ✅ amount는 percent로 저장되어 있음
+      } else {
+        setAmountType(AmountTypes.FIXED);
+      }
     }
   }, [openData]);
 
   const handleClick = (status: PositionOpenStatus) => {
-  // ✅ 진입 조건 필터링
-  const entryConditions = position.conditions.filter(c => c.conditionPhase === "ENTRY");
+    const entryConditions = position.conditions.filter(c => c.conditionPhase === "ENTRY");
+    if (status != PositionOpenStatuses.CANCELLED) {
+      if (entryConditions.length === 0) {
+        toast.error("진입 조건이 없습니다. 조건을 먼저 설정해주세요.");
+        return;
+      }
 
-  if (entryConditions.length === 0) {
-    toast.error("진입 조건이 없습니다. 조건을 먼저 설정해주세요.");
-    return;
-  }
+      if (!stopLoss || stopLoss <= 0) {
+        toast.error("Stop Loss는 필수입니다. 0보다 커야 합니다.");
+        return;
+      }
 
-  if (!stopLoss || stopLoss <= 0) {
-    toast.error("Stop Loss는 필수입니다. 0보다 커야 합니다.");
-    return;
-  }
-  if (status != 'CANCELLED') {
-    if (amount < 10) {
-      toast.error("금액은 최소 10 이상이어야 합니다.");
-      return;
-    }    
-  }
+      if (amount < 10) {
+        toast.error("금액은 최소 10 이상이어야 합니다.");
+        return;
+      }
+    }
 
     const payload: Omit<PositionOpenPayload, "status"> = {
       id: openId,
       positionId: position.id,
-      amount,
-      amountType,
+      amount: amountType === AmountTypes.PERCENT ? percent : amount,
+      amountType: amountType ?? AmountTypes.FIXED,
       stopLoss,
       takeProfit,
     };
-    console.log("🔥 [handleClick] 전송 payload:", payload);
+
     onUpdateStatus(openId, status, payload);
   };
 
-  const isStartable = status === "IDLE" || status === "CANCELLED";
-  const isRunning = status === "RUNNING";
-  const isSimulating = status === "SIMULATING";
+  const isStartable = status === PositionOpenStatuses.IDLE || status === PositionOpenStatuses.CANCELLED;
+  const isRunning = status === PositionOpenStatuses.RUNNING;
+  const isSimulating = status === PositionOpenStatuses.SIMULATING;
 
   const statusColor =
-    status === "RUNNING"
+    status === PositionOpenStatuses.RUNNING
       ? "text-green-400"
-      : status === "SIMULATING"
+      : status === PositionOpenStatuses.SIMULATING
       ? "text-blue-400"
-      : status === "CANCELLED"
+      : status === PositionOpenStatuses.CANCELLED
       ? "text-gray-400"
       : "text-yellow-400";
 
@@ -109,6 +118,7 @@ const PositionCard: React.FC<PositionCardProps> = ({
           ❌
         </button>
       </div>
+
       <div className="text-sm mb-2">
         조건:
         <ul className="list-disc ml-5">
@@ -150,17 +160,17 @@ const PositionCard: React.FC<PositionCardProps> = ({
         <div>
           <label className="block mb-1 text-sm">금액 유형</label>
           <select
-            value={amountType}
-            onChange={(e) => setAmountType(e.target.value as "fixed" | "percent")}
+            value={amountType ?? AmountTypes.FIXED}
+            onChange={(e) => setAmountType(e.target.value as AmountType)}
             className="w-full px-2 py-1 rounded bg-gray-700 border border-gray-600"
           >
-            <option value="fixed">고정 금액</option>
-            <option value="percent">비율</option>
+            <option value={AmountTypes.FIXED}>고정 금액</option>
+            <option value={AmountTypes.PERCENT}>비율</option>
           </select>
         </div>
 
         <div>
-          {amountType === "fixed" ? (
+          {amountType === null ? null : amountType === AmountTypes.FIXED ? (
             <div>
               <label className="block mb-1 text-sm">금액</label>
               <input
@@ -183,18 +193,17 @@ const PositionCard: React.FC<PositionCardProps> = ({
             <AmountSelector
               maxAmount={available}
               onChange={(val) => setAmount(val)}
+              onPercentChange={(p) => { setPercent(p); }}
+              initialPercent={percent}
             />
           )}
         </div>
 
-       
         <div className="col-span-2 text-sm text-gray-400">
           잔고: {balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
           <br />
           사용 가능: {available.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
         </div>
-
-        
       </div>
 
       <div className="flex gap-3 items-center">
@@ -202,7 +211,7 @@ const PositionCard: React.FC<PositionCardProps> = ({
 
         <button
           disabled={!isStartable}
-          onClick={() => handleClick("RUNNING")}
+          onClick={() => handleClick(PositionOpenStatuses.RUNNING)}
           className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded text-sm"
         >
           실행
@@ -210,7 +219,7 @@ const PositionCard: React.FC<PositionCardProps> = ({
 
         <button
           disabled={!isStartable}
-          onClick={() => handleClick("SIMULATING")}
+          onClick={() => handleClick(PositionOpenStatuses.SIMULATING)}
           className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded text-sm"
         >
           시뮬레이션
@@ -218,12 +227,13 @@ const PositionCard: React.FC<PositionCardProps> = ({
 
         <button
           disabled={!(isRunning || isSimulating)}
-          onClick={() => handleClick("CANCELLED")}
+          onClick={() => handleClick(PositionOpenStatuses.CANCELLED)}
           className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded text-sm"
         >
           취소
         </button>
       </div>
+
       <ToastContainer position="top-center" autoClose={3000} />
     </div>
   );

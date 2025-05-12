@@ -1,4 +1,4 @@
-package com.auto.trader.trade;
+package com.auto.trader.trade.indicator;
 
 import com.auto.trader.trade.dto.CandleDto;
 import lombok.AllArgsConstructor;

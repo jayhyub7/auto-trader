@@ -11,7 +11,7 @@ import { Timeframe } from "@/constants/TimeFrame";
 import { v4 as uuidv4 } from "uuid";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { fetchPositions, savePositions, deletePosition  } from "@/service/positionManager";
+import { fetchPositions, savePositions, deletePosition  } from "@/service/positionManagerService";
 import { ConditionPhase, IndicatorType, VWBBOperator, IndicatorCondition, Position, IdMapping, Direction } from "@/service/positionManagerService";
 import { handleAddCondition } from "@/components/PositionManager/handleAddCondition";
 
@@ -23,11 +23,14 @@ const PositionManager = () => {
   const [selectedPositionIds, setSelectedPositionIds] = useState<Set<string>>(new Set());
   const [selectedDirection, setSelectedDirection] = useState<Direction>("LONG");
   const [showConditionBox, setShowConditionBox] = useState(false);
-  const [activePositionId, setActivePositionId] = useState<string | null>(null);
+  const [activePositionId, setActivePositionId] = useState<string | null>(null);  
+  const [selectedIndicator, setSelectedIndicator] = useState<string>("RSI");
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>(Timeframe.ONE_MINUTE);
-  const [selectedIndicator, setSelectedIndicator] = useState<string>("");
-  const [currentCondition, setCurrentCondition] = useState<Partial<IndicatorCondition>>({});
   const [selectedPhase, setSelectedPhase] = useState<"ENTRY" | "EXIT">("ENTRY");
+  const [currentCondition, setCurrentCondition] = useState<Partial<IndicatorCondition>>({
+    operator: "이하"
+  });
+  
 
   useEffect(() => { 
     const loadPositions = async () => {
@@ -55,6 +58,7 @@ const PositionManager = () => {
       direction,
       exchange: selectedExchange,
       conditions: [],
+      open: [],
       enabled: true,
     };
   
@@ -126,8 +130,8 @@ const PositionManager = () => {
         })
       );
       toast.success("저장 완료");
-    } catch (err) {
-      toast.error("저장 중 오류 발생");
+    } catch (err) {     
+      toast.error(err.message);
     }
   };
 
@@ -157,7 +161,7 @@ const PositionManager = () => {
             </option>
           ))}
         </select>
-
+        {/*
         <input
           type="text"
           placeholder="포지션 제목을 입력하세요"
@@ -165,8 +169,7 @@ const PositionManager = () => {
           onChange={(e) => setPositionTitle(e.target.value)}
           className="px-4 py-2 rounded bg-gray-800 text-white border border-gray-600 w-1/2 mx-4"
         />
-
-        
+        */}
 
         {!showConditionBox && (
           <PositionControls
@@ -208,6 +211,10 @@ const PositionManager = () => {
         setActivePositionId={setActivePositionId}
         setPositions={setPositions}
       />
+
+      <div className="flex items-center justify-end mt-2 text-sm text-yellow-400">
+        ⚠️ 실행 중 또는 시뮬레이션 중인 포지션은 수정하더라도 반영되지 않습니다.
+      </div>
 
       <ToastContainer position="top-center" autoClose={2000} />
     </div>

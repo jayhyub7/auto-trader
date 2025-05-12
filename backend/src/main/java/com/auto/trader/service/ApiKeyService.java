@@ -2,6 +2,8 @@
 package com.auto.trader.service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,13 +30,31 @@ public class ApiKeyService {
     private final UserRepository userRepository;
     private final ApiKeyRepository apiKeyRepository;
     private final List<ExchangeService> exchangeServices;
-
+    private final Map<String, ApiKey> keyCache = new ConcurrentHashMap<>();
     public List<ApiKey> getUserKeys(User user) {
         return apiKeyRepository.findAllByUser(user);
+    }
+    
+    public ApiKey getValidatedKey(User user, Exchange exchange) {
+        String cacheKey = user.getId() + "_" + exchange.name();
+
+        // 1. 캐시에 있으면 바로 반환
+        if (keyCache.containsKey(cacheKey)) {
+            return keyCache.get(cacheKey);
+        }
+
+        // 2. 없으면 DB 조회 후 조건 확인
+        ApiKey key = apiKeyRepository.findByUserAndExchange(user, exchange)
+            .filter(ApiKey::isValidated)
+            .orElseThrow(() -> new IllegalStateException("인증된 API 키가 없습니다."));
+
+        keyCache.put(cacheKey, key); // ✅ 캐시에 저장
+        return key;
     }
 
     @Transactional
     public boolean saveOrUpdate(User user, Exchange exchange, String apiKey, String secretKey, String passphrase) {
+    	keyCache.remove(user.getId() + "_" + exchange.name());
     	Authentication auth = SecurityContextHolder.getContext().getAuthentication();    	
         ApiKey entity = apiKeyRepository.findByUserAndExchange(user, exchange)
             .map(k -> {
@@ -65,6 +85,7 @@ public class ApiKeyService {
     
     @Transactional
     public void deleteKey(User user, Exchange exchange) {
+    	keyCache.remove(user.getId() + "_" + exchange.name());
         apiKeyRepository.findByUserAndExchange(user, exchange)
             .ifPresent(apiKeyRepository::delete);
     }

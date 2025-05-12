@@ -47,9 +47,6 @@ public class IndicatorCondition extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private Timeframe timeframe;
 
-    @Enumerated(EnumType.STRING)
-    private Direction direction;
-
     @Enumerated(EnumType.STRING) // ✅ 추가
     private ConditionPhase conditionPhase;
 

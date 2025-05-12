@@ -1,11 +1,29 @@
+// 📁 src/service/positionOpenService.ts
+
 import api from "@/lib/axios";
 import { Exchange } from "@/constants/Exchange";
 import { Timeframe } from "@/constants/TimeFrame";
+import {
+  Direction,
+  ConditionPhase,
+  IndicatorType,
+  VWBBOperator,
+} from "@/service/positionManagerService";
 
-export type Direction = "LONG" | "SHORT";
-export type ConditionPhase = "ENTRY" | "EXIT";
-export type IndicatorType = "RSI" | "STOCH_RSI" | "VWBB";
-export type VWBBOperator = "상단_돌파" | "하단_돌파";
+// 💰 금액 유형 상수 및 타입 정의
+export const AmountTypes = {
+  FIXED: "FIXED",
+  PERCENT: "PERCENT",
+} as const;
+export type AmountType = keyof typeof AmountTypes;
+
+export const PositionOpenStatuses = {
+  IDLE: "IDLE",
+  RUNNING: "RUNNING",
+  SIMULATING: "SIMULATING",
+  CANCELLED: "CANCELLED",
+} as const;
+export type PositionOpenStatus = keyof typeof PositionOpenStatuses;
 
 export interface IndicatorCondition {
   type: IndicatorType;
@@ -16,15 +34,14 @@ export interface IndicatorCondition {
   timeframe: Timeframe;
   direction: Direction;
   conditionPhase: ConditionPhase;
+  enabled: boolean;
 }
-
-export type PositionOpenStatus = "IDLE" | "RUNNING" | "SIMULATING" | "CANCELLED";
 
 export interface PositionOpenDto {
   id: number;
   positionId: number;
   status: PositionOpenStatus;
-  amountType: "fixed" | "percent";
+  amountType: AmountType; 
   amount: number;
   stopLoss: number;
   takeProfit?: number;
@@ -36,21 +53,21 @@ export interface Position {
   exchange: Exchange;
   conditions: IndicatorCondition[];
   enabled: boolean;
-  open?: PositionOpenDto | null; // ✅ open 정보 포함됨
+  open?: PositionOpenDto | null;
 }
 
 export interface PositionOpenPayload {
   id?: number;
   positionId: number;
   amount: number;
-  amountType: "fixed" | "percent";
+  amountType: AmountType; 
   stopLoss: number;
   takeProfit?: number;
   status: PositionOpenStatus;
 }
 
 export const fetchMyOpenPositions = async (): Promise<Position[]> => {
-  const res = await api.get<Position[]>("/position-opens"); // ✅ 컨트롤러 대응
+  const res = await api.get<Position[]>("/position-opens");
   return res.data;
 };
 
