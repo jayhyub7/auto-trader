@@ -38,74 +38,82 @@ export const calculateSMA = (data: Candle[], period = 14): LinePoint[] => {
 };
 
 export const calculateRSI = (data: Candle[], period = 14): LinePoint[] => {
-  let gains = 0;
-  let losses = 0;
+  let avgGain = 0;
+  let avgLoss = 0;
+  const result: LinePoint[] = [];
 
-  for (let i = 1; i <= period; i++) {
+  for (let i = 1; i < data.length; i++) {
     const diff = data[i].close - data[i - 1].close;
-    if (diff >= 0) gains += diff;
-    else losses -= diff;
-  }
-
-  let avgGain = gains / period;
-  let avgLoss = losses / period;
-
-  const result: LinePoint[] = data.map((d, i) => ({ time: d.time, value: null }));
-  for (let i = period + 1; i < data.length; i++) {
-    const diff = data[i].close - data[i - 1].close;
-    const gain = diff >= 0 ? diff : 0;
+    const gain = diff > 0 ? diff : 0;
     const loss = diff < 0 ? -diff : 0;
 
-    avgGain = (avgGain * (period - 1) + gain) / period;
-    avgLoss = (avgLoss * (period - 1) + loss) / period;
-
-    const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-    const rsi = 100 - 100 / (1 + rs);
-
-    result[i] = { time: data[i].time, value: rsi };
+    if (i <= period) {
+      avgGain += gain;
+      avgLoss += loss;
+      result.push({ time: data[i].time, value: null });
+    } else if (i === period + 1) {
+      avgGain = avgGain / period;
+      avgLoss = avgLoss / period;
+      const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+      const rsi = 100 - 100 / (1 + rs);
+      result.push({ time: data[i].time, value: rsi });
+    } else {
+      avgGain = (avgGain * (period - 1) + gain) / period;
+      avgLoss = (avgLoss * (period - 1) + loss) / period;
+      const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+      const rsi = 100 - 100 / (1 + rs);
+      result.push({ time: data[i].time, value: rsi });
+    }
   }
 
   return result;
 };
 
-export const calculateStochRSI = (data: Candle[], period = 14, signalPeriod = 3): DualLinePoint[] => {
-  const rsi = calculateRSI(data, period);
+
+export const calculateStochRSI = (
+  data: Candle[],
+  rsiPeriod = 14,
+  stochPeriod = 14,
+  kPeriod = 3,
+  dPeriod = 3
+): DualLinePoint[] => {
+  const rsi = calculateRSI(data, rsiPeriod);
   const stochK: (number | null)[] = new Array(rsi.length).fill(null);
 
-  for (let i = period * 2; i < rsi.length; i++) {
-    const slice = rsi.slice(i - period + 1, i + 1);
-    const values = slice.map((d) => d.value).filter((v): v is number => v !== null);
-    if (values.length < period) continue;
+  for (let i = stochPeriod; i < rsi.length; i++) {
+    const slice = rsi.slice(i - stochPeriod + 1, i + 1).map((d) => d.value);
+    const valid = slice.filter((v): v is number => v !== null);
 
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    if (valid.length < stochPeriod) continue;
+
     const current = rsi[i].value;
+    const min = Math.min(...valid);
+    const max = Math.max(...valid);
 
-    if (current !== null && max !== min) {
+    if (current != null && max !== min) {
       stochK[i] = ((current - min) / (max - min)) * 100;
     }
   }
 
-  const result: DualLinePoint[] = rsi.map((d, i) => {
-    const k = stochK[i];
-    let dVal: number | null = null;
+  const smooth = (arr: (number | null)[], period: number): (number | null)[] => {
+    return arr.map((_, i) => {
+      if (i < period - 1) return null;
+      const values = arr.slice(i - period + 1, i + 1).filter((v): v is number => v !== null);
+      if (values.length < period) return null;
+      return values.reduce((sum, v) => sum + v, 0) / period;
+    });
+  };
 
-    if (k !== null && i >= signalPeriod) {
-      const recentK = stochK.slice(i - signalPeriod + 1, i + 1).filter((v): v is number => v !== null);
-      if (recentK.length === signalPeriod) {
-        dVal = recentK.reduce((sum, v) => sum + v, 0) / signalPeriod;
-      }
-    }
+  const smoothedK = smooth(stochK, kPeriod);
+  const smoothedD = smooth(smoothedK, dPeriod);
 
-    return {
-      time: d.time,
-      k,
-      d: dVal,
-    };
-  });
-
-  return result;
+  return rsi.map((d, i) => ({
+    time: d.time,
+    k: smoothedK[i],
+    d: smoothedD[i],
+  }));
 };
+
 
 // VWBB 계산
 // ✅ 프론트 VWBB 계산 (가중 이동평균 + 가중 표준편차 기반)

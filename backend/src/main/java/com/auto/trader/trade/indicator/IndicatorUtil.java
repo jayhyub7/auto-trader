@@ -20,26 +20,26 @@ public class IndicatorUtil {
       this.value = value;
     }
   }
+
   @Getter
   public static class DualIndicatorPoint {
     private long time;
     private Double k;
     private Double d;
 
-    // getters/setters
     public DualIndicatorPoint(long time, Double k, Double d) {
       this.time = time;
       this.k = k;
       this.d = d;
     }
   }
+
   @Getter
   public static class VWBB {
     private List<IndicatorPoint> upper;
     private List<IndicatorPoint> lower;
     private List<IndicatorPoint> basis;
 
-    // getters/setters
     private VWBB(List<IndicatorPoint> upper, List<IndicatorPoint> lower,
         List<IndicatorPoint> basis) {
       this.upper = upper;
@@ -48,36 +48,36 @@ public class IndicatorUtil {
     }
   }
 
+  // ✅ 실전 기준 RSI
   public static List<IndicatorPoint> calculateRSI(List<CandleDto> candles, int period) {
     List<IndicatorPoint> rsiPoints = new ArrayList<>();
     if (candles.size() < period + 1)
       return rsiPoints;
 
-    double gainSum = 0;
-    double lossSum = 0;
+    double avgGain = 0;
+    double avgLoss = 0;
 
     for (int i = 1; i <= period; i++) {
       double diff = candles.get(i).getClose() - candles.get(i - 1).getClose();
-      if (diff >= 0)
-        gainSum += diff;
+      if (diff > 0)
+        avgGain += diff;
       else
-        lossSum += -diff;
+        avgLoss -= diff;
+      rsiPoints.add(new IndicatorPoint(candles.get(i).getTime(), null));
     }
 
-    double avgGain = gainSum / period;
-    double avgLoss = lossSum / period;
-    double rs = avgLoss == 0 ? 100 : avgGain / avgLoss;
-    rsiPoints.add(new IndicatorPoint(candles.get(period).getTime(), 100 - (100 / (1 + rs))));
+    avgGain /= period;
+    avgLoss /= period;
 
     for (int i = period + 1; i < candles.size(); i++) {
       double diff = candles.get(i).getClose() - candles.get(i - 1).getClose();
       double gain = diff > 0 ? diff : 0;
       double loss = diff < 0 ? -diff : 0;
 
-      avgGain = ((avgGain * (period - 1)) + gain) / period;
-      avgLoss = ((avgLoss * (period - 1)) + loss) / period;
-      rs = avgLoss == 0 ? 100 : avgGain / avgLoss;
+      avgGain = (avgGain * (period - 1) + gain) / period;
+      avgLoss = (avgLoss * (period - 1) + loss) / period;
 
+      double rs = avgLoss == 0 ? 100 : avgGain / avgLoss;
       double rsi = 100 - (100 / (1 + rs));
       rsiPoints.add(new IndicatorPoint(candles.get(i).getTime(), rsi));
     }
@@ -85,20 +85,18 @@ public class IndicatorUtil {
     return rsiPoints;
   }
 
-  public static List<DualIndicatorPoint> calculateStochRSI(List<CandleDto> candles, int period,
-      int signalPeriod) {
-    List<IndicatorPoint> rsi = calculateRSI(candles, period);
+  // ✅ 실전 기준 StochRSI + smoothing
+  public static List<DualIndicatorPoint> calculateStochRSI(List<CandleDto> candles, int rsiPeriod,
+      int stochPeriod, int kPeriod, int dPeriod) {
+
+    List<IndicatorPoint> rsi = calculateRSI(candles, rsiPeriod);
     List<Double> stochK = new ArrayList<>(Collections.nCopies(rsi.size(), null));
 
-    for (int i = period * 2; i < rsi.size(); i++) {
-      List<Double> window = new ArrayList<>();
-      for (int j = i - period + 1; j <= i; j++) {
-        Double v = rsi.get(j).getValue();
-        if (v != null)
-          window.add(v);
-      }
+    for (int i = stochPeriod; i < rsi.size(); i++) {
+      List<Double> window = rsi.subList(i - stochPeriod + 1, i + 1).stream()
+          .map(IndicatorPoint::getValue).filter(Objects::nonNull).collect(Collectors.toList());
 
-      if (window.size() < period)
+      if (window.size() < stochPeriod)
         continue;
 
       double min = Collections.min(window);
@@ -106,28 +104,32 @@ public class IndicatorUtil {
       Double current = rsi.get(i).getValue();
 
       if (current != null && max != min) {
-        stochK.set(i, (current - min) / (max - min) * 100);
+        stochK.set(i, ((current - min) / (max - min)) * 100);
       }
     }
+
+    List<Double> smoothK = smooth(stochK, kPeriod);
+    List<Double> smoothD = smooth(smoothK, dPeriod);
 
     List<DualIndicatorPoint> result = new ArrayList<>();
     for (int i = 0; i < rsi.size(); i++) {
-      Double k = stochK.get(i);
-      Double dVal = null;
-
-      if (k != null && i >= signalPeriod) {
-        List<Double> recentK = stochK.subList(i - signalPeriod + 1, i + 1).stream()
-            .filter(Objects::nonNull).collect(Collectors.toList());
-
-        if (recentK.size() == signalPeriod) {
-          dVal = recentK.stream().mapToDouble(v -> v).average().orElse(0);
-        }
-      }
-
-      result.add(new DualIndicatorPoint(rsi.get(i).getTime(), k, dVal));
+      result.add(new DualIndicatorPoint(rsi.get(i).getTime(), smoothK.get(i), smoothD.get(i)));
     }
 
     return result;
+  }
+
+  private static List<Double> smooth(List<Double> data, int period) {
+    List<Double> smoothed = new ArrayList<>(Collections.nCopies(data.size(), null));
+    for (int i = period - 1; i < data.size(); i++) {
+      List<Double> window = data.subList(i - period + 1, i + 1).stream().filter(Objects::nonNull)
+          .collect(Collectors.toList());
+      if (window.size() < period)
+        continue;
+      double avg = window.stream().mapToDouble(d -> d).average().orElse(0);
+      smoothed.set(i, avg);
+    }
+    return smoothed;
   }
 
   public static List<IndicatorPoint> calculateEMA(List<CandleDto> candles, int period) {
@@ -175,7 +177,7 @@ public class IndicatorUtil {
     List<Double> vwma = new ArrayList<>(Collections.nCopies(size, null));
     List<Double> std = new ArrayList<>(Collections.nCopies(size, null));
 
-    double volumeWeightRatio = 0.5; // 프론트와 동일한 비율 조정값 적용
+    double volumeWeightRatio = 0.5;
 
     for (int i = period - 1; i < size; i++) {
       double volSum = 0, priceVolSum = 0;
@@ -219,7 +221,5 @@ public class IndicatorUtil {
 
     return new VWBB(upper, lower, basis);
   }
-
-
 
 }

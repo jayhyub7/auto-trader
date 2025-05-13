@@ -81,6 +81,9 @@ public class CandleAggregator {
     return Math.round(value * scale) / scale;
   }
 
+  public List<CandleDto> getCandles(String timeframe) {
+    return candleMap.getOrDefault(timeframe, List.of());
+  }
 
 
   private List<CandleDto> loadInitialCandles(String symbol, String timeframe) {

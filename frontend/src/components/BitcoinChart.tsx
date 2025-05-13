@@ -1,3 +1,5 @@
+// 📁 components/BitcoinChart.tsx
+
 import React, { useEffect, useRef, useState } from "react";
 import { createChart } from "lightweight-charts";
 import {
@@ -11,11 +13,11 @@ import SubChart from "./SubChart";
 import { Timeframe, TIMEFRAME_LABELS } from "@/constants/timeframe";
 
 interface BitcoinChartProps {
-  interval?: Timeframe; // 타입을 string 대신 Timeframe으로 변경
+  interval?: Timeframe;
 }
 
 const API_URL = "https://api.binance.com/api/v3/klines";
-const DEFAULT_INTERVAL = Timeframe.ONE_MINUTE; // 기본값을 Timeframe에서 가져온 값으로 설정
+const DEFAULT_INTERVAL = Timeframe.ONE_MINUTE;
 const INTERVAL_MAP: Record<Timeframe, string> = {
   [Timeframe.ONE_MINUTE]: "1m",
   [Timeframe.THREE_MINUTES]: "3m",
@@ -31,17 +33,16 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
   const chartRef = useRef<any>(null);
   const candleSeriesRef = useRef<any>(null);
   const emaSeriesRef = useRef<any>(null);
-  const smaSeriesRefs = useRef<Record<number, any>>({}); // period별 ref 저장용
+  const smaSeriesRefs = useRef<Record<number, any>>({});
   const candlesRef = useRef<any[]>([]);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [indicators, setIndicators] = useState<string[]>([]);
   const [rsiData, setRsiData] = useState<any[]>([]);
   const [stochRsiData, setStochRsiData] = useState<any[]>([]);
-  //VWBB
   const vwbbUpperSeriesRef = useRef<any>(null);
   const vwbbLowerSeriesRef = useRef<any>(null);
   const vwbbBasisSeriesRef = useRef<any>(null);
+  const socketRef = useRef<WebSocket | null>(null);
 
   const toggleIndicator = (name: string) => {
     setIndicators((prev) =>
@@ -58,8 +59,7 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
       chartRef.current = null;
       candleSeriesRef.current = null;
       emaSeriesRef.current = null;
-      smaSeriesRef.current = null;
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      smaSeriesRefs.current = {};
     }
 
     const chart = createChart(container, {
@@ -95,8 +95,12 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
     const fetchInitialData = async () => {
       setIsLoading(true);
       try {
-        const mappedInterval = INTERVAL_MAP[currentInterval] || "1m"; // Timeframe을 사용하여 interval 값 가져오기
-        const res = await fetch(`${API_URL}?symbol=BTCUSDT&interval=${mappedInterval}&limit=500`);
+        const mappedInterval = INTERVAL_MAP[currentInterval] || "1m";
+        const now = Date.now();
+        const endTime = now - (now % 60000);
+        const startTime = endTime - 500 * 60 * 1000;
+
+        const res = await fetch(`${API_URL}?symbol=BTCUSDT&interval=${mappedInterval}&startTime=${startTime}&endTime=${endTime}`);
         const raw = await res.json();
 
         const round = (v: number, decimals = 4) =>
@@ -108,125 +112,113 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
           high: round(parseFloat(d[2])),
           low: round(parseFloat(d[3])),
           close: round(parseFloat(d[4])),
+          final: true,
         }));
 
         candlesRef.current = formatted;
         series.setData(formatted);
         chart.timeScale().fitContent();
 
-        if (indicators.includes("EMA")) {
-          const ema = calculateEMA(formatted);
-          emaSeriesRef.current = chart.addLineSeries();
-          emaSeriesRef.current.setData(ema.filter((d) => d.value !== null));
-        }
-
-        if (indicators.includes("SMA")) {
-          [20, 60, 100].forEach((period) => {
-            const sma = calculateSMA(formatted, period);
-            const series = chart.addLineSeries({
-              color: period === 20 ? "orange" : period === 60 ? "aqua" : "violet",
-            });
-            series.setData(sma.filter((d) => d.value !== null));
-            smaSeriesRefs.current[period] = series;
-          });
-        }
-
-        if (indicators.includes("RSI")) {
-          const rsi = calculateRSI(formatted);
-          setRsiData(rsi);
-        }
-
-        if (indicators.includes("STOCH_RSI")) {
-          const stoch = calculateStochRSI(formatted);
-          setStochRsiData(stoch);
-        }
-        if (indicators.includes("VWBB")) {
-          const vwbb = calculateVWBB(formatted);
-          vwbbUpperSeriesRef.current = chart.addLineSeries({ color: "red" });
-          vwbbLowerSeriesRef.current = chart.addLineSeries({ color: "blue" });
-          vwbbBasisSeriesRef.current = chart.addLineSeries({ color: "orange" });
-
-          vwbbUpperSeriesRef.current.setData(vwbb.upper.filter(d => d.value !== null));
-          vwbbLowerSeriesRef.current.setData(vwbb.lower.filter(d => d.value !== null));
-          vwbbBasisSeriesRef.current.setData(vwbb.basis.filter(d => d.value !== null));
-        }
+        updateIndicators();
+        connectWebSocket();
       } catch (e) {
         console.error("데이터 로딩 실패", e);
       }
       setIsLoading(false);
     };
 
-    const startRealtimeUpdates = () => {
-      intervalRef.current = setInterval(async () => {
-        try {
+    const updateIndicators = () => {
 
-          const mappedInterval = INTERVAL_MAP[currentInterval] || "1m";
-          const res = await fetch(`${API_URL}?symbol=BTCUSDT&interval=${mappedInterval}&limit=2`);
-          const raw = await res.json();
-          const last = raw[raw.length - 1];
-          const round = (v: number, decimals = 4) =>
-            Math.round(v * 10 ** decimals) / 10 ** decimals;
-          const newCandle = {
-            time: last[0] / 1000,
-            open: round(parseFloat(last[1])),
-            high: round(parseFloat(last[2])),
-            low: round(parseFloat(last[3])),
-            close: round(parseFloat(last[4])),
-          };
+      console.log("🧪 프론트 VWBB 캔들 시작 time:", candlesRef.current[0].time);
+        console.log("🧪 프론트 VWBB 캔들 마지막 time:", candlesRef.current.at(-1)?.time);
+        console.log("🧪 프론트 VWBB 캔들 수:", candlesRef.current.length);
 
-          const existing = candlesRef.current;
-          const lastTime = existing[existing.length - 1]?.time;
+      let baseData = [...candlesRef.current];
+      if (!baseData.at(-1)?.final) baseData = baseData.slice(0, -1);
 
-          if (newCandle.time > lastTime) {
-            candlesRef.current.push(newCandle);
-            candleSeriesRef.current?.update(newCandle);
-          } else if (newCandle.time === lastTime) {
-            candlesRef.current[existing.length - 1] = newCandle;
-            candleSeriesRef.current?.update(newCandle);
-          }
+      if (indicators.includes("EMA") && emaSeriesRef.current) {
+        const ema = calculateEMA(baseData);
+        emaSeriesRef.current.setData(ema.filter((d) => d.value !== null));
+      }
 
-          if (indicators.includes("EMA") && emaSeriesRef.current) {
-            const ema = calculateEMA(candlesRef.current);
-            emaSeriesRef.current.setData(ema.filter((d) => d.value !== null));
-          }
+      if (indicators.includes("SMA")) {
+        [20, 60, 100].forEach((period) => {
+          const sma = calculateSMA(baseData, period);
+          const series = smaSeriesRefs.current[period];
+          series?.setData(sma.filter((d) => d.value !== null));
+        });
+      }
 
-          if (indicators.includes("SMA")) {
-            [20, 60, 100].forEach((period) => {
-              const sma = calculateSMA(candlesRef.current, period);
-              const series = smaSeriesRefs.current[period];
-              series?.setData(sma.filter((d) => d.value !== null));
-            });
-          }
+      if (indicators.includes("RSI")) {
+        setRsiData(calculateRSI(baseData, 14));
+      }
 
-          if (indicators.includes("RSI")) {
-            const rsi = calculateRSI(candlesRef.current);
-            setRsiData(rsi);
-          }
+      if (indicators.includes("STOCH_RSI")) {
+        setStochRsiData(calculateStochRSI(baseData, 14, 14, 3, 3));
+      }
 
-          if (indicators.includes("STOCH_RSI")) {
-            const stoch = calculateStochRSI(candlesRef.current);
-            setStochRsiData(stoch);
-          }
-          if (indicators.includes("VWBB")) {
-            const vwbb = calculateVWBB(candlesRef.current);
+      if (indicators.includes("VWBB")) {
+        const vwbb = calculateVWBB(baseData, 20, 2.0);
 
-            vwbbUpperSeriesRef.current?.setData(vwbb.upper.filter(d => d.value !== null));
-            vwbbLowerSeriesRef.current?.setData(vwbb.lower.filter(d => d.value !== null));
-            vwbbBasisSeriesRef.current?.setData(vwbb.basis.filter(d => d.value !== null));
-          }
-        } catch (e) {
-          console.error("실시간 캔들 갱신 실패", e);
+        if (!vwbbUpperSeriesRef.current) {
+          vwbbUpperSeriesRef.current = chart.addLineSeries({ color: "red" });
+          vwbbLowerSeriesRef.current = chart.addLineSeries({ color: "blue" });
+          vwbbBasisSeriesRef.current = chart.addLineSeries({ color: "orange" });
         }
-      }, 2000);
+
+        vwbbUpperSeriesRef.current.setData(vwbb.upper.filter(d => d.value !== null));
+        vwbbLowerSeriesRef.current.setData(vwbb.lower.filter(d => d.value !== null));
+        vwbbBasisSeriesRef.current.setData(vwbb.basis.filter(d => d.value !== null));
+      }
+    };
+
+    const connectWebSocket = () => {
+      const intervalStr = INTERVAL_MAP[currentInterval] || "1m";
+      const wsUrl = `wss://stream.binance.com:9443/ws/btcusdt@kline_${intervalStr}`;
+      socketRef.current = new WebSocket(wsUrl);
+
+      socketRef.current.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        const k = data.k;
+
+        const newCandle = {
+          time: Math.floor(k.t / 1000),
+          open: parseFloat(k.o),
+          high: parseFloat(k.h),
+          low: parseFloat(k.l),
+          close: parseFloat(k.c),
+          final: k.x,
+        };
+
+        const existing = candlesRef.current;
+        const lastTime = existing[existing.length - 1]?.time;
+
+        if (newCandle.time > lastTime) {
+          candlesRef.current.push(newCandle);
+        } else if (newCandle.time === lastTime) {
+          candlesRef.current[existing.length - 1] = newCandle;
+        }
+
+        candleSeriesRef.current?.update(newCandle);
+
+        if (k.x) {
+          console.log("📩 실시간 마감된 캔들 시간:", new Date(newCandle.time * 1000).toLocaleString(), newCandle);
+          updateIndicators();
+        }
+      };
+
+      socketRef.current.onclose = () => {
+        console.warn("⚠ 웹소켓 종료됨, 재연결 시도 중...");
+        setTimeout(connectWebSocket, 3000);
+      };
     };
 
     fetchInitialData();
-    startRealtimeUpdates();
 
     return () => {
-      chart.remove();
+      if (socketRef.current) socketRef.current.close();
+      if (chartRef.current) chartRef.current.remove();
       chartRef.current = null;
-      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [currentInterval, indicators]);
 
@@ -258,7 +250,7 @@ const BitcoinChart: React.FC<BitcoinChartProps> = ({ interval = DEFAULT_INTERVAL
           </button>
         ))}
       </div>
-      {isLoading && <div className="text-white">? 로딩 중...</div>}
+      {isLoading && <div className="text-white">📡 로딩 중...</div>}
       <div ref={chartContainerRef} className="w-full h-[400px] border border-slate-600 rounded-md" />
       {(indicators.includes("RSI") || indicators.includes("STOCH_RSI")) && chartRef.current && (
         <SubChart

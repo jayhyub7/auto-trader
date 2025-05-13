@@ -1,6 +1,6 @@
 logging:
   level:
-    root: INFO
+    root: WARN
     com.auto.trader: INFO
     org.springframework.web: INFO
     org.hibernate.SQL: OFF
