@@ -155,12 +155,26 @@ public class PositionService {
         .build();
   }
 
+  public void deleteById(Long id) {
+    Position position = positionRepository.findById(id)
+        .orElseThrow(() -> new RuntimeException("존재하지 않는 포지션: " + id));
+
+    Optional<PositionOpen> openOpt = positionOpenRepository.findByPosition(position);
+
+    boolean isBlocked = openOpt.map(open -> open.getStatus() == PositionOpenStatus.RUNNING
+        || open.getStatus() == PositionOpenStatus.SIMULATING).orElse(false);
+
+    if (isBlocked) {
+      throw new IllegalStateException("실행 중이거나 시뮬레이션 중인 포지션은 삭제할 수 없습니다.");
+    }
+
+    positionRepository.delete(position);
+  }
 
   public void deleteByIds(List<Long> ids) {
-    positionRepository.deleteAllById(ids);
+    for (Long id : ids) {
+      deleteById(id); // 각 포지션에 대해 상태 검사 수행
+    }
   }
 
-  public void deleteById(Long id) {
-    positionRepository.deleteById(id);
-  }
 }

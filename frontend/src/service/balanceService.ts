@@ -1,4 +1,4 @@
-import api from "@/lib/axios";
+import api from "@/shared/util/axios";
 
 export type BalanceItem = {
   asset: string;

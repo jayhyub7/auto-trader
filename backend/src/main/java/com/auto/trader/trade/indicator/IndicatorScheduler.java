@@ -3,7 +3,6 @@
 package com.auto.trader.trade.indicator;
 
 import java.util.List;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import com.auto.trader.trade.dto.CandleDto;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +17,7 @@ public class IndicatorScheduler {
   private final IndicatorCalculator indicatorCalculator;
 
   // VWBB, RSI, StochRSI 계산 후 메모리에 저장
-  @Scheduled(fixedDelay = 1000)
+  // @Scheduled(fixedDelay = 1000)
   public void updateIndicators() {
     try {
       String SYMBOL = "BTCUSDT";

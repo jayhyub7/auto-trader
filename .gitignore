@@ -39,3 +39,4 @@ pnpm-lock.yaml
 # Secret
 .env
 
+.jar

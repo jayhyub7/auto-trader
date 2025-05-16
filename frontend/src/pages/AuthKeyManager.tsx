@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Exchange, EXCHANGE_LABELS } from "../constants/Exchange";
-import api from "../lib/axios";
+import api from "@/shared/util/axios";
 import { ApiKeyDto } from "../types/apiKey";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // 타입 정의
@@ -22,7 +22,11 @@ const AuthKeyManager = () => {
     });
   }, []);
 
-  const handleChange = (exchange: Exchange, field: keyof ApiKeyDto, value: string) => {
+  const handleChange = (
+    exchange: Exchange,
+    field: keyof ApiKeyDto,
+    value: string
+  ) => {
     setApiKeys((prev) => ({
       ...prev,
       [exchange]: {
@@ -72,7 +76,6 @@ const AuthKeyManager = () => {
 
   return (
     <div className="p-6 max-w-3xl mx-auto text-gray-200">
-      <ToastContainer position="top-center" />
       <h1 className="text-2xl font-bold mb-8">🔐 인증키 관리</h1>
 
       {exchanges.map((exchange) => {
@@ -81,7 +84,10 @@ const AuthKeyManager = () => {
         const isSaved = !!(data.apiKey && data.secretKey);
 
         return (
-          <div key={exchange} className="mb-6 bg-gray-800 rounded-xl p-4 shadow">
+          <div
+            key={exchange}
+            className="mb-6 bg-gray-800 rounded-xl p-4 shadow"
+          >
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">
                 {EXCHANGE_LABELS[exchange]} API 키
@@ -89,7 +95,9 @@ const AuthKeyManager = () => {
               {isSaved && (
                 <span
                   className={`text-sm px-2 py-1 rounded-full ${
-                    validated ? "bg-green-600 text-white" : "bg-red-600 text-white"
+                    validated
+                      ? "bg-green-600 text-white"
+                      : "bg-red-600 text-white"
                   }`}
                 >
                   {validated ? "인증됨" : "인증 안됨"}
@@ -102,21 +110,27 @@ const AuthKeyManager = () => {
                 className="bg-gray-900 border border-gray-600 p-2 rounded w-full"
                 placeholder="API Key"
                 value={data.apiKey || ""}
-                onChange={(e) => handleChange(exchange, "apiKey", e.target.value)}
+                onChange={(e) =>
+                  handleChange(exchange, "apiKey", e.target.value)
+                }
               />
               <input
                 className="bg-gray-900 border border-gray-600 p-2 rounded w-full"
                 placeholder="Secret Key"
                 type="password"
                 value={data.secretKey || ""}
-                onChange={(e) => handleChange(exchange, "secretKey", e.target.value)}
+                onChange={(e) =>
+                  handleChange(exchange, "secretKey", e.target.value)
+                }
               />
               {exchange === Exchange.BITGET && (
                 <input
                   className="bg-gray-900 border border-gray-600 p-2 rounded w-full"
                   placeholder="Passphrase"
                   value={data.passphrase || ""}
-                  onChange={(e) => handleChange(exchange, "passphrase", e.target.value)}
+                  onChange={(e) =>
+                    handleChange(exchange, "passphrase", e.target.value)
+                  }
                 />
               )}
               <div className="flex gap-3">

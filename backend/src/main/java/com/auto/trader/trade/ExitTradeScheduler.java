@@ -1,7 +1,6 @@
 package com.auto.trader.trade;
 
 import java.util.List;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import com.auto.trader.balance.dto.BalanceDto;
 import com.auto.trader.balance.dto.cache.BalanceMemoryStore;
@@ -46,7 +45,7 @@ public class ExitTradeScheduler {
   private final PositionOpenRepository positionOpenRepository;
 
   // 종료조건만 남음
-  @Scheduled(fixedDelay = 3000)
+  // @Scheduled(fixedDelay = 3000)
   @Transactional
   public void checkExitPosition() {
     List<Position> runningPositions = positionOpenService.findRunningPositions();

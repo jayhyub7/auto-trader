@@ -1,4 +1,4 @@
-import api from "@/lib/axios";
+import api from "@/shared/util/axios";
 
 export interface AdminKey {
   id?: number;

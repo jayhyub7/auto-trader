@@ -4,6 +4,7 @@ package com.auto.trader.config;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -44,4 +45,8 @@ public class GlobalExceptionHandler {
   }
 
   // TODO: 필요에 따라 다른 예외들도 별도 정의 (e.g. ValidationException 등)
+  @ExceptionHandler(IllegalStateException.class)
+  public ResponseEntity<?> handleIllegalState(IllegalStateException e) {
+    return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+  }
 }

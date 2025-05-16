@@ -79,7 +79,7 @@ public class BinanceWebSocketService {
   @org.springframework.scheduling.annotation.Scheduled(fixedRate = 1000)
   public void processLatestPrice() {
     if (lastPrice != 0 && lastTimestamp != 0) {
-      candleAggregator.handleTick("BTCUSDT", lastPrice, lastTimestamp);
+      // candleAggregator.handleTick("BTCUSDT", lastPrice, lastTimestamp);
     }
   }
 

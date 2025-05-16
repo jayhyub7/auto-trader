@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../lib/axios";
+import api from "@/shared/util/axios";
 
 const Login = () => {
   const navigate = useNavigate();
