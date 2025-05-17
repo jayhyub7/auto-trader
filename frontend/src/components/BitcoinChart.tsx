@@ -85,7 +85,8 @@ const BitcoinChart = () => {
       height: 400,
       layout: {
         background: { color: "#0f172a" },
-        textColor: "#e2e8f0" },
+        textColor: "#e2e8f0",
+      },
       grid: {
         vertLines: { color: "#1e293b" },
         horzLines: { color: "#1e293b" },
@@ -108,7 +109,9 @@ const BitcoinChart = () => {
       const endTime = now - (now % 60000);
       const startTime = endTime - 500 * 60 * 1000;
       const interval = INTERVAL_MAP[currentInterval];
-      const res = await fetch(`${API_URL}?symbol=BTCUSDT&interval=${interval}&startTime=${startTime}&endTime=${endTime}`);
+      const res = await fetch(
+        `${API_URL}?symbol=BTCUSDT&interval=${interval}&startTime=${startTime}&endTime=${endTime}`
+      );
       const raw = await res.json();
       const candles = raw.map((d: any) => ({
         time: d[0] / 1000,
@@ -122,40 +125,70 @@ const BitcoinChart = () => {
       candleSeries.setData(candles);
       chart.timeScale().fitContent();
       updateIndicators();
+      // ✅ 가장 최신 30개 캔들 로그
+      const latest30 = candles.slice(-30);
+      console.log("🕒 최신 30개 캔들:", JSON.stringify(latest30));
     };
 
     const updateIndicators = () => {
-      if (!chartRef.current || typeof chartRef.current.addLineSeries !== 'function') return;
+      if (
+        !chartRef.current ||
+        typeof chartRef.current.addLineSeries !== "function"
+      )
+        return;
       const base = candlesRef.current.slice();
 
       if (indicators.includes("EMA")) {
         if (!emaSeriesRef.current) {
-          emaSeriesRef.current = chartRef.current.addLineSeries({ color: "lime", lineWidth: 2 });
+          emaSeriesRef.current = chartRef.current.addLineSeries({
+            color: "lime",
+            lineWidth: 2,
+          });
         }
-        const ema = calculateEMA(base).filter(d => typeof d.value === "number");
+        const ema = calculateEMA(base).filter(
+          (d) => typeof d.value === "number"
+        );
         emaSeriesRef.current.setData(ema);
       }
 
       if (indicators.includes("SMA")) {
         [20, 60, 100].forEach((p) => {
           if (!smaSeriesRefs.current[p]) {
-            smaSeriesRefs.current[p] = chartRef.current.addLineSeries({ color: "#60a5fa", lineWidth: 1 });
+            smaSeriesRefs.current[p] = chartRef.current.addLineSeries({
+              color: "#60a5fa",
+              lineWidth: 1,
+            });
           }
-          const sma = calculateSMA(base, p).filter(d => typeof d.value === "number");
+          const sma = calculateSMA(base, p).filter(
+            (d) => typeof d.value === "number"
+          );
           smaSeriesRefs.current[p].setData(sma);
         });
       }
 
       if (indicators.includes("VWBB")) {
         const vwbb = calculateVWBB(base);
+
         if (!vwbbUpperRef.current) {
-          vwbbUpperRef.current = chartRef.current.addLineSeries({ color: "red" });
-          vwbbLowerRef.current = chartRef.current.addLineSeries({ color: "blue" });
-          vwbbBasisRef.current = chartRef.current.addLineSeries({ color: "orange" });
+          vwbbUpperRef.current = chartRef.current.addLineSeries({
+            color: "red",
+          });
+          vwbbLowerRef.current = chartRef.current.addLineSeries({
+            color: "blue",
+          });
+          vwbbBasisRef.current = chartRef.current.addLineSeries({
+            color: "orange",
+          });
         }
-        vwbbUpperRef.current.setData(vwbb.upper.filter(d => typeof d.value === "number"));
-        vwbbLowerRef.current.setData(vwbb.lower.filter(d => typeof d.value === "number"));
-        vwbbBasisRef.current.setData(vwbb.basis.filter(d => typeof d.value === "number"));
+        vwbbUpperRef.current.setData(
+          vwbb.upper.filter((d) => typeof d.value === "number")
+        );
+        vwbbLowerRef.current.setData(
+          vwbb.lower.filter((d) => typeof d.value === "number")
+        );
+        vwbbBasisRef.current.setData(
+          vwbb.basis.filter((d) => typeof d.value === "number")
+        );
       }
 
       if (indicators.includes("RSI")) {
@@ -191,7 +224,15 @@ const BitcoinChart = () => {
           candlesRef.current[candlesRef.current.length - 1] = newCandle;
         }
 
-        candleSeriesRef.current?.update(newCandle);
+        try {
+          candleSeriesRef.current?.update(newCandle);
+        } catch (err) {
+          console.warn(
+            "⏳ [skip] Chart not ready. update skipped once : ",
+            err.message
+          );
+        }
+
         if (newCandle.final) updateIndicators();
       };
       ws.onclose = () => setTimeout(connectSocket, 3000);
@@ -201,25 +242,28 @@ const BitcoinChart = () => {
     connectSocket();
 
     return () => {
-  if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-    socketRef.current.close();
-  }
-  socketRef.current = null;
+      if (
+        socketRef.current &&
+        socketRef.current.readyState === WebSocket.OPEN
+      ) {
+        socketRef.current.close();
+      }
+      socketRef.current = null;
 
-  try {
-    chartRef.current?.remove();
-  } catch (e) {
-    console.warn("chart.remove() error", e);
-  }
-  chartRef.current = null;
+      try {
+        chartRef.current?.remove();
+      } catch (e) {
+        console.warn("chart.remove() error", e);
+      }
+      chartRef.current = null;
 
-  candleSeriesRef.current = null;
-  emaSeriesRef.current = null;
-  smaSeriesRefs.current = {};
-  vwbbUpperRef.current = null;
-  vwbbLowerRef.current = null;
-  vwbbBasisRef.current = null;
-};
+      candleSeriesRef.current = null;
+      emaSeriesRef.current = null;
+      smaSeriesRefs.current = {};
+      vwbbUpperRef.current = null;
+      vwbbLowerRef.current = null;
+      vwbbBasisRef.current = null;
+    };
   }, [currentInterval, indicators]);
 
   let safeTimeScale = null;
@@ -237,7 +281,9 @@ const BitcoinChart = () => {
             key={item}
             onClick={() => setCurrentInterval(item)}
             className={`px-2 py-1 text-xs rounded shadow font-semibold ${
-              currentInterval === item ? "bg-yellow-400 text-black" : "bg-gray-700 text-gray-300"
+              currentInterval === item
+                ? "bg-yellow-400 text-black"
+                : "bg-gray-700 text-gray-300"
             }`}
           >
             {TIMEFRAME_LABELS[item]}
@@ -250,21 +296,27 @@ const BitcoinChart = () => {
             key={name}
             onClick={() => toggleIndicator(name)}
             className={`px-2 py-1 text-xs rounded font-semibold shadow ${
-              indicators.includes(name) ? "bg-green-500 text-white" : "bg-gray-600 text-gray-300"
+              indicators.includes(name)
+                ? "bg-green-500 text-white"
+                : "bg-gray-600 text-gray-300"
             }`}
           >
             {name}
           </button>
         ))}
       </div>
-      <div ref={containerRef} className="w-full h-[400px] border border-slate-600 rounded-md" />
-      {(indicators.includes("RSI") || indicators.includes("STOCH_RSI")) && safeTimeScale && (
-        <SubChart
-          rsiData={indicators.includes("RSI") ? rsiData : []}
-          stochRsiData={indicators.includes("STOCH_RSI") ? stochRsiData : []}
-          mainTimeScale={safeTimeScale}
-        />
-      )}
+      <div
+        ref={containerRef}
+        className="w-full h-[400px] border border-slate-600 rounded-md"
+      />
+      {(indicators.includes("RSI") || indicators.includes("STOCH_RSI")) &&
+        safeTimeScale && (
+          <SubChart
+            rsiData={indicators.includes("RSI") ? rsiData : []}
+            stochRsiData={indicators.includes("STOCH_RSI") ? stochRsiData : []}
+            mainTimeScale={safeTimeScale}
+          />
+        )}
     </div>
   );
 };

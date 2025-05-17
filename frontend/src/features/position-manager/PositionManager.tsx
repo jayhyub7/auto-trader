@@ -36,6 +36,7 @@ const PositionManager = () => {
   };
 
   useEffect(() => {
+    console.log("useEffect");
     load();
   }, []);
 

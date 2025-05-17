@@ -1,3 +1,16 @@
+// 파일: src/shared/util/indicatorUtil.ts
+
+export interface IndicatorPoint {
+  time: number;
+  value: number | null;
+}
+
+export interface DualIndicatorPoint {
+  time: number;
+  k: number | null;
+  d: number | null;
+}
+
 export interface Candle {
   time: number;
   open: number;
@@ -7,18 +20,7 @@ export interface Candle {
   volume: number;
 }
 
-export interface LinePoint {
-  time: number;
-  value: number | null;
-}
-
-export interface DualLinePoint {
-  time: number;
-  k: number | null;
-  d: number | null;
-}
-
-export const calculateEMA = (data: Candle[], period = 20): LinePoint[] => {
+export const calculateEMA = (data: Candle[], period = 20): IndicatorPoint[] => {
   const k = 2 / (period + 1);
   let emaPrev = data[0].close;
 
@@ -29,18 +31,20 @@ export const calculateEMA = (data: Candle[], period = 20): LinePoint[] => {
   });
 };
 
-export const calculateSMA = (data: Candle[], period = 14): LinePoint[] => {
+export const calculateSMA = (data: Candle[], period = 14): IndicatorPoint[] => {
   return data.map((d, i) => {
     if (i < period - 1) return { time: d.time, value: null };
-    const sum = data.slice(i - period + 1, i + 1).reduce((acc, cur) => acc + cur.close, 0);
+    const sum = data
+      .slice(i - period + 1, i + 1)
+      .reduce((acc, cur) => acc + cur.close, 0);
     return { time: d.time, value: sum / period };
   });
 };
 
-export const calculateRSI = (data: Candle[], period = 14): LinePoint[] => {
+export const calculateRSI = (data: Candle[], period = 14): IndicatorPoint[] => {
   let avgGain = 0;
   let avgLoss = 0;
-  const result: LinePoint[] = [];
+  const result: IndicatorPoint[] = [];
 
   for (let i = 1; i < data.length; i++) {
     const diff = data[i].close - data[i - 1].close;
@@ -69,14 +73,13 @@ export const calculateRSI = (data: Candle[], period = 14): LinePoint[] => {
   return result;
 };
 
-
 export const calculateStochRSI = (
   data: Candle[],
   rsiPeriod = 14,
   stochPeriod = 14,
   kPeriod = 3,
   dPeriod = 3
-): DualLinePoint[] => {
+): DualIndicatorPoint[] => {
   const rsi = calculateRSI(data, rsiPeriod);
   const stochK: (number | null)[] = new Array(rsi.length).fill(null);
 
@@ -95,10 +98,15 @@ export const calculateStochRSI = (
     }
   }
 
-  const smooth = (arr: (number | null)[], period: number): (number | null)[] => {
+  const smooth = (
+    arr: (number | null)[],
+    period: number
+  ): (number | null)[] => {
     return arr.map((_, i) => {
       if (i < period - 1) return null;
-      const values = arr.slice(i - period + 1, i + 1).filter((v): v is number => v !== null);
+      const values = arr
+        .slice(i - period + 1, i + 1)
+        .filter((v): v is number => v !== null);
       if (values.length < period) return null;
       return values.reduce((sum, v) => sum + v, 0) / period;
     });
@@ -114,27 +122,23 @@ export const calculateStochRSI = (
   }));
 };
 
-
-// VWBB 계산
-// ✅ 프론트 VWBB 계산 (가중 이동평균 + 가중 표준편차 기반)
 export const calculateVWBB = (
   candles: Candle[],
   period = 20,
   multiplier = 2,
-  volumeWeightRatio = 0.5 // ⬅️ 비율 조정값 추가
+  volumeWeightRatio = 0.5
 ): {
-  upper: LinePoint[];
-  lower: LinePoint[];
-  basis: LinePoint[];
+  upper: IndicatorPoint[];
+  lower: IndicatorPoint[];
+  basis: IndicatorPoint[];
 } => {
   const vwma = candles.map((_, i) => {
-
     if (i < period - 1) return null;
     let volSum = 0;
     let priceVolSum = 0;
     for (let j = i - period + 1; j <= i; j++) {
       const price = candles[j].close;
-      const volume = (candles[j].volume ?? 1) * volumeWeightRatio; // ⬅️ 비율 조정 적용
+      const volume = (candles[j].volume ?? 1) * volumeWeightRatio;
       volSum += volume;
       priceVolSum += price * volume;
     }
@@ -144,9 +148,10 @@ export const calculateVWBB = (
   const std = candles.map((_, i) => {
     if (i < period - 1 || vwma[i] == null) return null;
     const mean = vwma[i]!;
-    const variance = candles
-      .slice(i - period + 1, i + 1)
-      .reduce((sum, d) => sum + Math.pow(d.close - mean, 2), 0) / period;
+    const variance =
+      candles
+        .slice(i - period + 1, i + 1)
+        .reduce((sum, d) => sum + Math.pow(d.close - mean, 2), 0) / period;
     return Math.sqrt(variance);
   });
 
@@ -165,47 +170,9 @@ export const calculateVWBB = (
   };
 };
 
-
-/*
-export const calculateVWBB = (candles: Candle[], period = 20, multiplier = 2): {
-  upper: LinePoint[];
-  lower: LinePoint[];
-  basis: LinePoint[];
-} => {
-  const vwma = candles.map((_, i) => {
-    if (i < period - 1) return null;
-    let volSum = 0;
-    let priceVolSum = 0;
-    for (let j = i - period + 1; j <= i; j++) {
-      const price = candles[j].close;
-      const volume = candles[j].volume ?? 1; // 없으면 기본값 1
-      volSum += volume;
-      priceVolSum += price * volume;
-    }
-    return priceVolSum / volSum;
-  });
-
-  const std = candles.map((_, i) => {
-    if (i < period - 1) return null;
-    const mean = vwma[i]!;
-    const variance = candles
-      .slice(i - period + 1, i + 1)
-      .reduce((sum, d) => sum + Math.pow(d.close - mean, 2), 0) / period;
-    return Math.sqrt(variance);
-  });
-
-  return {
-    basis: vwma.map((v, i) => (v == null ? { time: candles[i].time, value: null } : { time: candles[i].time, value: v })),
-    upper: vwma.map((v, i) =>
-      v == null || std[i] == null
-        ? { time: candles[i].time, value: null }
-        : { time: candles[i].time, value: v + multiplier * std[i]! }
-    ),
-    lower: vwma.map((v, i) =>
-      v == null || std[i] == null
-        ? { time: candles[i].time, value: null }
-        : { time: candles[i].time, value: v - multiplier * std[i]! }
-    ),
-  };
+export const formatTimestampKST = (timestamp: number): string => {
+  const date = new Date(timestamp * 1000); // ms로 변환
+  const kstOffset = 9 * 60 * 60 * 1000; // UTC+9
+  const kst = new Date(date.getTime() + kstOffset);
+  return kst.toISOString().replace("T", " ").substring(0, 19);
 };
-*/

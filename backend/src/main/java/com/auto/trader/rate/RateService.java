@@ -1,3 +1,5 @@
+// 파일: com.auto.trader.rate.RateService.java
+
 package com.auto.trader.rate;
 
 import org.springframework.stereotype.Service;
@@ -13,40 +15,50 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class RateService {
 
-	private static final String API_URL = "https://api.exchangerate.host/latest?base=USD&symbols=KRW";
+	private static final String BINANCE_BTCUSDT_URL = "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT";
+	private static final String UPBIT_BTCKRW_URL = "https://api.upbit.com/v1/ticker?markets=KRW-BTC";
 
-    private final RestTemplate restTemplate = new RestTemplate();
-    private double usdToKrw = 1350.0; // 초기 fallback
+	private final RestTemplate restTemplate = new RestTemplate();
+	private double usdToKrw = 1350.0; // fallback 기본 환율
 
-    public void updateRates() {
-        try {
-            ExchangeRateResponse response = restTemplate.getForObject(API_URL, ExchangeRateResponse.class);
-            log.info("🔍 API 응답: {}", response);
-            if (response != null && response.getRates() != null && response.getRates().getKrw() > 0) {
-                usdToKrw = response.getRates().getKrw();
-                log.info("✅ 환율 업데이트: 1 USD = {} KRW", usdToKrw);
-            } else {
-                log.warn("⚠️ 환율 응답이 유효하지 않음");
-            }
-        } catch (Exception e) {
-            log.error("❌ 환율 조회 실패", e);
-        }
-    }
+	public void updateRates() {
+		try {
+			BinancePrice btcUsdt = restTemplate.getForObject(BINANCE_BTCUSDT_URL, BinancePrice.class);
+			UpbitPrice[] btcKrwArray = restTemplate.getForObject(UPBIT_BTCKRW_URL, UpbitPrice[].class);
 
-    public double getUsdToKrw() {
-        return usdToKrw;
-    }
+			if (btcUsdt != null && btcUsdt.getPrice() > 0 && btcKrwArray != null && btcKrwArray.length > 0) {
+				double btcUsdtPrice = btcUsdt.getPrice();
+				double btcKrwPrice = btcKrwArray[0].getTradePrice();
 
-    @Data
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class ExchangeRateResponse {
-        private Rates rates;
+				usdToKrw = btcKrwPrice / btcUsdtPrice;
+				log.info("✅ 환율 업데이트: 1 USD ≒ {} KRW (BTC 기준 계산)", usdToKrw);
+			} else {
+				log.warn("⚠️ 가격 정보 부족 - 환율 업데이트 실패");
+			}
+		} catch (Exception e) {
+			log.error("❌ 환율 계산 실패 (Binance/Upbit 연동)", e);
+		}
+	}
 
-        @Data
-        @JsonIgnoreProperties(ignoreUnknown = true)
-        public static class Rates {
-            @JsonProperty("KRW")
-            private double krw;
-        }
-    }
+	public double getUsdToKrw() {
+		return usdToKrw;
+	}
+
+	@Data
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	public static class BinancePrice {
+		private double price;
+
+		@JsonProperty("price")
+		public void setPrice(String price) {
+			this.price = Double.parseDouble(price);
+		}
+	}
+
+	@Data
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	public static class UpbitPrice {
+		@JsonProperty("trade_price")
+		private double tradePrice;
+	}
 }
