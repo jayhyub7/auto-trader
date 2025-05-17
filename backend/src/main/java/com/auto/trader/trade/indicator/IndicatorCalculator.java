@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 public class IndicatorCalculator {
 
 	public void calculateAndStore(String symbol, String timeframe, List<CandleDto> candles) {
+
 		try {
 			if (candles.size() < 50)
 				return;
@@ -35,6 +36,7 @@ public class IndicatorCalculator {
 			double currentPrice = candles.get(candles.size() - 1).getClose();
 
 			IndicatorCache cache = new IndicatorCache(candles, rsi, ema, sma, stoch, vwbb, currentPrice);
+
 			String key = symbol + "_" + timeframe;
 			IndicatorMemoryStore.put(key, cache);
 

@@ -1,3 +1,5 @@
+// ✅ 통합된 지표 처리 구성 (WebSocket + 캔들 생성 + 지표 계산)
+
 package com.auto.trader.trade.indicator;
 
 import java.util.ArrayList;
@@ -5,6 +7,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
@@ -17,8 +21,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class CandleAggregator {
-
+@EnableScheduling
+public class IndicatorProcessor {
+	private final RestTemplate restTemplate = new RestTemplate();
 	private final IndicatorCalculator indicatorCalculator;
 
 	private static final List<String> TIMEFRAMES = List.of("1m", "3m", "5m", "15m", "1h", "4h", "1d");
@@ -28,14 +33,14 @@ public class CandleAggregator {
 
 	private final Map<String, List<CandleDto>> candleMap = new HashMap<>();
 	private final Map<String, CandleDto> currentCandleMap = new HashMap<>();
-	private final RestTemplate restTemplate = new RestTemplate();
 
 	@PostConstruct
 	public void init() {
+		String symbol = "BTCUSDT";
 		for (String tf : TIMEFRAMES) {
-			List<CandleDto> candles = loadInitialCandles("BTCUSDT", tf);
+			List<CandleDto> candles = loadInitialCandles(symbol, tf);
 			candleMap.put(tf, candles);
-			currentCandleMap.put(tf, null); // 초기 캔들은 틱 수신 시 생성
+			currentCandleMap.put(tf, null); // 틱 수신 시 생성됨
 		}
 	}
 
@@ -44,16 +49,14 @@ public class CandleAggregator {
 			long interval = INTERVAL_MILLIS.get(tf);
 			long bucketTime = timestamp - (timestamp % interval);
 
-			List<CandleDto> candles = candleMap.get(tf);
+			List<CandleDto> candles = candleMap.computeIfAbsent(tf, k -> new ArrayList<>());
 			CandleDto current = currentCandleMap.get(tf);
-
 			double roundedPrice = roundToDecimals(price, 4);
 
 			if (current == null || current.getTime() != bucketTime) {
 				if (current != null) {
 					candles.add(current);
 				}
-
 				CandleDto newCandle = new CandleDto();
 				newCandle.setTime(bucketTime);
 				newCandle.setOpen(roundedPrice);
@@ -62,31 +65,37 @@ public class CandleAggregator {
 				newCandle.setClose(roundedPrice);
 				newCandle.setVolume(1);
 				currentCandleMap.put(tf, newCandle);
-
-				// ✅ 지표 계산 시 진행 중인 current 봉 제외
-				List<CandleDto> fullList = new ArrayList<>(candles);
-				indicatorCalculator.calculateAndStore(symbol, tf, fullList);
-
 			} else {
 				current.setClose(roundedPrice);
 				current.setHigh(Math.max(current.getHigh(), roundedPrice));
 				current.setLow(Math.min(current.getLow(), roundedPrice));
 				current.setVolume(current.getVolume() + 1);
-
-				// ✅ 여기도 current 봉 제외
-				List<CandleDto> fullList = new ArrayList<>(candles);
-				indicatorCalculator.calculateAndStore(symbol, tf, fullList);
 			}
+		}
+	}
+
+	@Scheduled(fixedDelay = 1000)
+	public void updateIndicators() {
+
+		String symbol = "BTCUSDT";
+		for (String tf : TIMEFRAMES) {
+			List<CandleDto> candles = candleMap.getOrDefault(tf, List.of());
+
+			if (candles.size() < 50)
+				continue;
+
+			List<CandleDto> full = new ArrayList<>(candles);
+			CandleDto current = currentCandleMap.get(tf);
+			if (current != null)
+				full.add(current);
+
+			indicatorCalculator.calculateAndStore(symbol, tf, full);
 		}
 	}
 
 	private double roundToDecimals(double value, int decimals) {
 		double scale = Math.pow(10, decimals);
 		return Math.round(value * scale) / scale;
-	}
-
-	public List<CandleDto> getCandles(String timeframe) {
-		return candleMap.getOrDefault(timeframe, List.of());
 	}
 
 	private List<CandleDto> loadInitialCandles(String symbol, String timeframe) {

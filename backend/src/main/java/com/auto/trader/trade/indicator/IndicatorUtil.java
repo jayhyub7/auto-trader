@@ -2,6 +2,10 @@
 
 package com.auto.trader.trade.indicator;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -221,5 +225,10 @@ public class IndicatorUtil {
 		}
 
 		return new VWBB(upper, lower, basis);
+	}
+
+	public static String toKST(long millis) {
+		ZonedDateTime zdt = Instant.ofEpochMilli(millis).atZone(ZoneId.of("Asia/Seoul"));
+		return zdt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 	}
 }

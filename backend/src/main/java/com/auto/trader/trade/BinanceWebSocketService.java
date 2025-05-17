@@ -12,7 +12,7 @@ import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 
-import com.auto.trader.trade.indicator.CandleAggregator;
+import com.auto.trader.trade.indicator.IndicatorProcessor;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -25,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class BinanceWebSocketService {
 
-	private final CandleAggregator candleAggregator;
+	private final IndicatorProcessor indicatorProcessor;
 
 	private volatile double lastPrice = 0;
 	private volatile long lastTimestamp = 0;
@@ -82,7 +82,7 @@ public class BinanceWebSocketService {
 	@org.springframework.scheduling.annotation.Scheduled(fixedRate = 1000)
 	public void processLatestPrice() {
 		if (lastPrice != 0 && lastTimestamp != 0) {
-			candleAggregator.handleTick("BTCUSDT", lastPrice, lastTimestamp);
+			indicatorProcessor.handleTick("BTCUSDT", lastPrice, lastTimestamp);
 		}
 	}
 

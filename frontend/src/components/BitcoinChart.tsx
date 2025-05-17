@@ -233,7 +233,7 @@ const BitcoinChart = () => {
           );
         }
 
-        if (newCandle.final) updateIndicators();
+        updateIndicators();
       };
       ws.onclose = () => setTimeout(connectSocket, 3000);
     };

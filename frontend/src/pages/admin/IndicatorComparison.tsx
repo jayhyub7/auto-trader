@@ -19,7 +19,7 @@ const IndicatorComparison = () => {
 
   const fetchLatestCandles = async (): Promise<Candle[]> => {
     const now = Date.now();
-    const endTime = now - (now % 60000);
+    const endTime = now - (now % 60000) + 60000; // ✅ 다음 정각까지 포함되게 보냄
     const startTime = endTime - 500 * 60 * 1000;
     const res = await fetch(
       `${API_URL}?symbol=${SYMBOL}&interval=${INTERVAL}&startTime=${startTime}&endTime=${endTime}`

@@ -24,7 +24,9 @@ import com.auto.trader.trade.indicator.IndicatorUtil.IndicatorPoint;
 import com.auto.trader.trade.indicator.IndicatorUtil.VWBB;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class IndicatorComparisonService {
@@ -60,7 +62,10 @@ public class IndicatorComparisonService {
 	}
 
 	public AllComparisonResultDto compareAllIndicators(RsiComparisonRequestDto dto) {
+
 		List<CandleDto> candles = dto.getCandles();
+		CandleDto last = candles.get(candles.size() - 1);
+		log.info("📦 프론트에서 보낸 마지막 캔들 시각: {}", IndicatorUtil.toKST(last.getTime() * 1000));
 
 		int rsiPeriod = 14, emaPeriod = 14, smaPeriod = 20, vwbbPeriod = 20, multiplier = 2;
 		int stochRsiPeriod = 14, k = 3, d = 3;
