@@ -61,11 +61,12 @@ public class IndicatorProcessor {
 				for (Object[] o : response) {
 					CandleDto c = new CandleDto();
 					c.setTime(((Number) o[0]).longValue());
-					c.setOpen(roundToDecimals(Double.parseDouble((String) o[1]), 4));
-					c.setHigh(roundToDecimals(Double.parseDouble((String) o[2]), 4));
-					c.setLow(roundToDecimals(Double.parseDouble((String) o[3]), 4));
-					c.setClose(roundToDecimals(Double.parseDouble((String) o[4]), 4));
-					c.setVolume(roundToDecimals(Double.parseDouble((String) o[5]), 2));
+					c.setOpen(Double.parseDouble((String) o[1]));
+					c.setHigh(Double.parseDouble((String) o[2]));
+					c.setLow(Double.parseDouble((String) o[3]));
+					c.setClose(Double.parseDouble((String) o[4]));
+					c.setVolume(Double.parseDouble((String) o[5]));
+
 					result.add(c);
 				}
 			}
@@ -100,11 +101,15 @@ public class IndicatorProcessor {
 				.volume(volume)
 				.build();
 
-			// ✅ 중복 시간 캔들 제거 후 최신 마감 캔들 반영
-			candles.removeIf(c -> c.getTime() == time);
-			candles.add(newCandle);
-			if (candles.size() > 500) {
-				candles.remove(0); // 항상 500개 유지
+			CandleDto last = candles.getLast();
+			System.out
+				.println("newCandle.getTime() : " + IndicatorUtil.toKST(newCandle.getTime()) + ", last.getTime() : + "
+						+ IndicatorUtil.toKST(last.getTime()));
+			if (newCandle.getTime() > last.getTime()) {
+				candles.add(newCandle);
+			} else if (newCandle.getTime() == last.getTime()) {
+				candles.removeLast();
+				candles.add(newCandle);
 			}
 
 			indicatorCalculator.calculateAndStore(symbol, tf, candles);

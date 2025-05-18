@@ -6,6 +6,7 @@ import {
   calculateRSI,
   calculateStochRSI,
   calculateVWBB,
+  formatTimestampKST,
 } from "@/shared/util/indicatorUtil";
 import SubChart from "./SubChart";
 import { Timeframe, TIMEFRAME_LABELS } from "@/constants/timeframe";
@@ -216,7 +217,12 @@ const BitcoinChart = () => {
 
         const last = candlesRef.current.at(-1);
         if (!last) return;
-
+        console.log(
+          "newCandle.time : " +
+            formatTimestampKST(newCandle.time) +
+            ", last.time : " +
+            formatTimestampKST(last.time)
+        );
         if (newCandle.time > last.time) {
           candlesRef.current.push(newCandle);
         } else if (newCandle.time === last.time) {

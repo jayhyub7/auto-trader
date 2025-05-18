@@ -1,5 +1,3 @@
-// 파일: com.auto.trader.trade.indicator.IndicatorUtil.java
-
 package com.auto.trader.trade.indicator;
 
 import java.time.Instant;
@@ -188,8 +186,7 @@ public class IndicatorUtil {
 			double volSum = 0, priceVolSum = 0;
 			for (int j = i - period + 1; j <= i; j++) {
 				double price = candles.get(j).getClose();
-				double rawVolume = candles.get(j).getVolume();
-				double volume = (rawVolume > 0 ? rawVolume : 1) * price; // ✅ 수량 × 가격 → USDT 기준
+				double volume = candles.get(j).getVolume(); // ✅ volume 그대로 사용
 				volSum += volume;
 				priceVolSum += price * volume;
 			}

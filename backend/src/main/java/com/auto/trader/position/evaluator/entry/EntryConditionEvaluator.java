@@ -81,6 +81,8 @@ class StochRsiEvaluator implements EntryConditionEvaluator {
 }
 
 class VwbbEvaluator implements EntryConditionEvaluator {
+	private static final double VWBB_TOLERANCE_RATIO = 0.00005; // 0.005%
+
 	@Override
 	public boolean evaluate(IndicatorCondition cond, IndicatorCache cache, SchedulerLogManager log) {
 		var basis = cache.getVwbb().getBasis();
@@ -99,26 +101,29 @@ class VwbbEvaluator implements EntryConditionEvaluator {
 		double basisVal = basis.get(size - 1).getValue();
 		long lastCandleTime = cache.getCandles().get(cache.getCandles().size() - 1).getTime();
 
+		double upperTolerance = upperBand * VWBB_TOLERANCE_RATIO;
+		double lowerTolerance = lowerBand * VWBB_TOLERANCE_RATIO;
+
 		log
 			.log("📊 [VWBB 검사] 현재가: {}, 상단: {}, 기준선: {}, 하단: {}, 캔들 수: {}, 마지막 캔들 UTC: {}", currentPrice, upperBand,
 					basisVal, lowerBand, cache.getCandles().size(), lastCandleTime);
 
 		if (cond.getOperator() == Operator.상단_돌파) {
-			if (currentPrice > upperBand) {
-				log.log("✅ 상단 돌파 조건 통과 ({} > {})", currentPrice, upperBand);
+			if (currentPrice >= upperBand - upperTolerance) {
+				log.log("✅ 상단 돌파 조건 통과 ({} ≥ {} - 허용오차 {})", currentPrice, upperBand, upperTolerance);
 				return true;
 			} else {
-				log.log("❌ 상단 돌파 조건 실패 ({} <= {})", currentPrice, upperBand);
+				log.log("❌ 상단 돌파 조건 실패 ({} < {} - 허용오차 {})", currentPrice, upperBand, upperTolerance);
 				return false;
 			}
 		}
 
 		if (cond.getOperator() == Operator.하단_돌파) {
-			if (currentPrice < lowerBand) {
-				log.log("✅ 하단 돌파 조건 통과 ({} < {})", currentPrice, lowerBand);
+			if (currentPrice <= lowerBand + lowerTolerance) {
+				log.log("✅ 하단 돌파 조건 통과 ({} ≤ {} + 허용오차 {})", currentPrice, lowerBand, lowerTolerance);
 				return true;
 			} else {
-				log.log("❌ 하단 돌파 조건 실패 ({} >= {})", currentPrice, lowerBand);
+				log.log("❌ 하단 돌파 조건 실패 ({} > {} + 허용오차 {})", currentPrice, lowerBand, lowerTolerance);
 				return false;
 			}
 		}
@@ -126,5 +131,4 @@ class VwbbEvaluator implements EntryConditionEvaluator {
 		log.log("⚠️ VWBB 연산자 일치 없음: {}", cond.getOperator());
 		return false;
 	}
-
 }

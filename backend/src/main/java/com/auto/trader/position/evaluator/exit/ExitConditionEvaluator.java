@@ -59,6 +59,8 @@ class ExitStochRsiEvaluator implements ExitConditionEvaluator {
 }
 
 class ExitVwbbEvaluator implements ExitConditionEvaluator {
+	private static final double VWBB_TOLERANCE_RATIO = 0.00005; // 0.005%
+
 	@Override
 	public boolean evaluate(IndicatorCondition cond, IndicatorCache cache, SchedulerLogManager log) {
 		var vwbb = cache.getVwbb();
@@ -72,24 +74,27 @@ class ExitVwbbEvaluator implements ExitConditionEvaluator {
 		double lower = vwbb.getLower().getLast().getValue();
 		Operator op = cond.getOperator();
 
+		double upperTolerance = upper * VWBB_TOLERANCE_RATIO;
+		double lowerTolerance = lower * VWBB_TOLERANCE_RATIO;
+
 		log.log("🧪 VWBB 검사 | 현재가: {}, 상단: {}, 하단: {}, 연산자: {}", current, upper, lower, op);
 
 		switch (op) {
 		case 상단_돌파 -> {
-			if (current > upper) {
-				log.log("✅ 상단 돌파 조건 통과 ({} > {})", current, upper);
+			if (current >= upper - upperTolerance) {
+				log.log("✅ 상단 돌파 조건 통과 ({} ≥ {} - 허용오차 {})", current, upper, upperTolerance);
 				return true;
 			} else {
-				log.log("❌ 상단 돌파 조건 실패 ({} <= {})", current, upper);
+				log.log("❌ 상단 돌파 조건 실패 ({} < {} - 허용오차 {})", current, upper, upperTolerance);
 				return false;
 			}
 		}
 		case 하단_돌파 -> {
-			if (current < lower) {
-				log.log("✅ 하단 돌파 조건 통과 ({} < {})", current, lower);
+			if (current <= lower + lowerTolerance) {
+				log.log("✅ 하단 돌파 조건 통과 ({} ≤ {} + 허용오차 {})", current, lower, lowerTolerance);
 				return true;
 			} else {
-				log.log("❌ 하단 돌파 조건 실패 ({} >= {})", current, lower);
+				log.log("❌ 하단 돌파 조건 실패 ({} > {} + 허용오차 {})", current, lower, lowerTolerance);
 				return false;
 			}
 		}
