@@ -25,6 +25,8 @@ const IndicatorComparison = () => {
       `${API_URL}?symbol=${SYMBOL}&interval=${INTERVAL}&startTime=${startTime}&endTime=${endTime}`
     );
     const raw = await res.json();
+    console.log("raw : ", raw);
+    console.log("마지막 : ", formatTimestampKST(raw[raw.length - 1][0] / 1000));
     return raw.map((d: any) => ({
       time: d[0] / 1000,
       open: +d[1],
@@ -44,6 +46,7 @@ const IndicatorComparison = () => {
 
   const handleCompare = async () => {
     const candles = await fetchLatestCandles();
+
     const res = await compareAllIndicators(SYMBOL, INTERVAL, candles);
 
     const filtered = Object.fromEntries(

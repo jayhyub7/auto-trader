@@ -2,7 +2,6 @@
 
 package com.auto.trader.indicator.service;
 
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -14,7 +13,6 @@ import com.auto.trader.indicator.dto.AllComparisonResultDto;
 import com.auto.trader.indicator.dto.AllComparisonResultDto.CandleComparison;
 import com.auto.trader.indicator.dto.AllComparisonResultDto.CandleDiff;
 import com.auto.trader.indicator.dto.RsiComparisonRequestDto;
-import com.auto.trader.indicator.dto.RsiComparisonResultDto;
 import com.auto.trader.trade.dto.CandleDto;
 import com.auto.trader.trade.indicator.IndicatorCache;
 import com.auto.trader.trade.indicator.IndicatorMemoryStore;
@@ -31,37 +29,14 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class IndicatorComparisonService {
 
-	public List<RsiComparisonResultDto> compareRsi(RsiComparisonRequestDto dto) {
-		List<CandleDto> candles = dto.getCandles();
-		int rsiPeriod = 14;
-		List<IndicatorPoint> frontendRsi = IndicatorUtil.calculateRSI(candles, rsiPeriod);
-
-		String key = dto.getSymbol() + "_" + dto.getTimeframe();
-
-		IndicatorCache cache = IndicatorMemoryStore.get(key);
-		if (cache == null || cache.getRsi() == null)
-			return Collections.emptyList();
-
-		Map<Long, Double> backendRsiMap = cache
-			.getRsi()
-			.stream()
-			.collect(Collectors.toMap(IndicatorPoint::getTime, IndicatorPoint::getValue));
-		System.out.println("frontendRsi.size() : " + frontendRsi.size());
-		return frontendRsi
-			.stream()
-			.filter(p -> p.getValue() != null && backendRsiMap.containsKey(p.getTime()))
-			.sorted(Comparator.comparing(IndicatorPoint::getTime).reversed())
-			.limit(30)
-			.map(p -> {
-				double backend = backendRsiMap.get(p.getTime());
-				double diff = Math.abs(p.getValue() - backend);
-				return new RsiComparisonResultDto(p.getTime(), p.getValue(), backend, diff);
-			})
-			.sorted(Comparator.comparing(RsiComparisonResultDto::getTime))
-			.toList();
-	}
-
 	public AllComparisonResultDto compareAllIndicators(RsiComparisonRequestDto dto) {
+
+		// 🔍 백엔드 캐시의 마지막 캔들 시간 확인
+		IndicatorCache cache = IndicatorMemoryStore.get(dto.getSymbol() + "_" + dto.getTimeframe());
+		if (cache != null && cache.getCandles() != null && !cache.getCandles().isEmpty()) {
+			long lastBackendTime = cache.getCandles().get(cache.getCandles().size() - 1).getTime();
+			log.info("📥 백엔드 마지막 캔들 시각: {}", IndicatorUtil.toKST(lastBackendTime));
+		}
 
 		List<CandleDto> candles = dto.getCandles();
 		CandleDto last = candles.get(candles.size() - 1);
@@ -71,7 +46,13 @@ public class IndicatorComparisonService {
 		int stochRsiPeriod = 14, k = 3, d = 3;
 		String key = dto.getSymbol() + "_" + dto.getTimeframe();
 
-		IndicatorCache cache = IndicatorMemoryStore.get(key);
+		if (cache == null) {
+			log.warn("⚠ compareAllIndicators: 지표 캐시 없음: {}", key);
+			return new AllComparisonResultDto(List.of(), List.of(), List.of(), null, List.of(), List.of());
+		}
+
+		long backendLastTime = cache.getRsi().get(cache.getRsi().size() - 1).getTime();
+		log.info("📥 백엔드에서 보유한 마지막 지표 시각: {}", IndicatorUtil.toKST(backendLastTime));
 
 		List<IndicatorPoint> frontendRsi = IndicatorUtil.calculateRSI(candles, rsiPeriod);
 		List<IndicatorPoint> frontendEma = IndicatorUtil.calculateEMA(candles, emaPeriod);
@@ -84,43 +65,35 @@ public class IndicatorComparisonService {
 			.getRsi()
 			.stream()
 			.filter(p -> p != null && p.getValue() != null)
-			.collect(Collectors
-				.toMap(p -> p.getTime() / 1000, // ✅ 수정된 부분
-						IndicatorPoint::getValue));
-
+			.collect(Collectors.toMap(p -> p.getTime() / 1000, IndicatorPoint::getValue));
 		Map<Long, Double> backendEma = cache
 			.getEma()
 			.stream()
 			.filter(p -> p != null && p.getValue() != null)
 			.collect(Collectors.toMap(p -> p.getTime() / 1000, IndicatorPoint::getValue));
-
 		Map<Long, Double> backendSma = cache
 			.getSma()
 			.stream()
 			.filter(p -> p != null && p.getValue() != null)
 			.collect(Collectors.toMap(p -> p.getTime() / 1000, IndicatorPoint::getValue));
-
 		Map<Long, Double> upper = cache
 			.getVwbb()
 			.getUpper()
 			.stream()
 			.filter(p -> p != null && p.getValue() != null)
 			.collect(Collectors.toMap(p -> p.getTime() / 1000, IndicatorPoint::getValue));
-
 		Map<Long, Double> lower = cache
 			.getVwbb()
 			.getLower()
 			.stream()
 			.filter(p -> p != null && p.getValue() != null)
 			.collect(Collectors.toMap(p -> p.getTime() / 1000, IndicatorPoint::getValue));
-
 		Map<Long, Double> basis = cache
 			.getVwbb()
 			.getBasis()
 			.stream()
 			.filter(p -> p != null && p.getValue() != null)
 			.collect(Collectors.toMap(p -> p.getTime() / 1000, IndicatorPoint::getValue));
-
 		Map<Long, DualIndicatorPoint> stoch = cache
 			.getStochRsi()
 			.stream()
@@ -146,31 +119,14 @@ public class IndicatorComparisonService {
 			})
 			.toList();
 
-		System.out.println("▶️ [비교 KEY] " + key);
-
-		System.out.println("🟦 frontendRsi.size: " + frontendRsi.size());
-		System.out.println("🟦 frontendEma.size: " + frontendEma.size());
-		System.out.println("🟦 frontendSma.size: " + frontendSma.size());
-		System.out.println("🟦 frontendStoch.size: " + frontendStoch.size());
-		System.out.println("🟦 frontendVwbb.upper.size: " + frontendVwbb.getUpper().size());
-
-		System.out.println("🟥 backendRsi.size: " + backendRsi.size());
-		System.out.println("🟥 backendEma.size: " + backendEma.size());
-		System.out.println("🟥 backendSma.size: " + backendSma.size());
-		System.out.println("🟥 upper.size: " + upper.size());
-		System.out.println("🟥 lower.size: " + lower.size());
-		System.out.println("🟥 basis.size: " + basis.size());
-		System.out.println("🟥 stoch.size: " + stoch.size());
-
 		List<CandleDto> backendCandles = cache
 			.getCandles()
 			.stream()
-			.map(c -> new CandleDto(c.getTime() / 1000, // ✅ 초 단위로 변환
-					c.getOpen(), c.getHigh(), c.getLow(), c.getClose(), c.getVolume()))
+			.map(c -> new CandleDto(c.getTime() / 1000, c.getOpen(), c.getHigh(), c.getLow(), c.getClose(),
+					c.getVolume()))
 			.collect(Collectors.toList());
 
 		Map<Long, CandleDto> frontMap = dto.getCandles().stream().collect(Collectors.toMap(CandleDto::getTime, c -> c));
-
 		Map<Long, CandleDto> backMap = backendCandles.stream().collect(Collectors.toMap(CandleDto::getTime, c -> c));
 
 		List<CandleComparison> candleComparisons = frontMap.keySet().stream().filter(backMap::containsKey).map(t -> {
@@ -180,13 +136,12 @@ public class IndicatorComparisonService {
 					Math.abs(f.getVolume() - b.getVolume()));
 			return new CandleComparison(t, f, b, diff);
 		}).toList();
-		// candleComparisons = null;
+
 		return new AllComparisonResultDto(rsi, sma, ema, vwbb, stochList, candleComparisons);
 	}
 
 	private List<AllComparisonResultDto.ComparisonPoint> compareSingle(List<IndicatorPoint> front,
 			Map<Long, Double> back) {
-
 		return front
 			.stream()
 			.filter(p -> p.getValue() != null && back.containsKey(p.getTime()))

@@ -127,7 +127,6 @@ const BitcoinChart = () => {
       updateIndicators();
       // ✅ 가장 최신 30개 캔들 로그
       const latest30 = candles.slice(-30);
-      console.log("🕒 최신 30개 캔들:", JSON.stringify(latest30));
     };
 
     const updateIndicators = () => {

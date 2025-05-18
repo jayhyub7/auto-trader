@@ -40,6 +40,7 @@ public class IndicatorProcessor {
 			List<CandleDto> candles = loadInitialCandles(symbol, tf);
 			candleMap.put(tf, candles);
 			currentCandleMap.put(tf, null);
+			indicatorCalculator.calculateAndStore(symbol, tf, candles);
 		}
 	}
 
@@ -79,7 +80,6 @@ public class IndicatorProcessor {
 		}
 	}
 
-	// ✅ 마감된 캔들 수신 처리 (1m only)
 	public void handleCandle(String symbol, long time, double open, double high, double low, double close,
 			double volume) {
 		try {
@@ -100,6 +100,8 @@ public class IndicatorProcessor {
 				.volume(volume)
 				.build();
 
+			// ✅ 중복 시간 캔들 제거 후 최신 마감 캔들 반영
+			candles.removeIf(c -> c.getTime() == time);
 			candles.add(newCandle);
 			if (candles.size() > 500) {
 				candles.remove(0); // 항상 500개 유지
