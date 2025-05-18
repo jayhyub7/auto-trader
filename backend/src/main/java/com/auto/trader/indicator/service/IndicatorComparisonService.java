@@ -1,161 +1,145 @@
-// 파일: com.auto.trader.indicator.service.IndicatorComparisonService.java
-
 package com.auto.trader.indicator.service;
 
-import java.util.Comparator;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
 import com.auto.trader.indicator.dto.AllComparisonRequestDto;
 import com.auto.trader.indicator.dto.AllComparisonResultDto;
-import com.auto.trader.indicator.dto.AllComparisonResultDto.CandleComparison;
-import com.auto.trader.indicator.dto.AllComparisonResultDto.CandleDiff;
 import com.auto.trader.trade.dto.CandleDto;
 import com.auto.trader.trade.indicator.IndicatorCache;
 import com.auto.trader.trade.indicator.IndicatorMemoryStore;
 import com.auto.trader.trade.indicator.IndicatorUtil;
-import com.auto.trader.trade.indicator.IndicatorUtil.DualIndicatorPoint;
-import com.auto.trader.trade.indicator.IndicatorUtil.IndicatorPoint;
-import com.auto.trader.trade.indicator.IndicatorUtil.VWBB;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class IndicatorComparisonService {
 
-	public AllComparisonResultDto compareAllIndicators(AllComparisonRequestDto dto) {
+	public AllComparisonResultDto compareAll(AllComparisonRequestDto request) {
+		String key = request.getSymbol() + "_" + request.getTimeframe();
+		IndicatorCache backend = IndicatorMemoryStore.get(key);
+		List<CandleDto> frontendCandles = request.getCandles();
 
-		// 🔍 백엔드 캐시의 마지막 캔들 시간 확인
-		IndicatorCache cache = IndicatorMemoryStore.get(dto.getSymbol() + "_" + dto.getTimeframe());
-		if (cache != null && cache.getCandles() != null && !cache.getCandles().isEmpty()) {
-			long lastBackendTime = cache.getCandles().get(cache.getCandles().size() - 1).getTime();
-			log.info("📥 백엔드 마지막 캔들 시각: {}", IndicatorUtil.toKST(lastBackendTime));
+		Map<String, Object> result = new HashMap<>();
+
+		if (backend == null || backend.getRsi() == null) {
+			result.put("error", "백엔드 캐시에 지표 데이터가 없습니다.");
+			return AllComparisonResultDto.builder().result(result).build();
 		}
 
-		List<CandleDto> candles = dto.getCandles();
-		CandleDto last = candles.get(candles.size() - 1);
-		log.info("📦 프론트에서 보낸 마지막 캔들 시각: {}", IndicatorUtil.toKST(last.getTime() * 1000));
+		// ✅ RSI 비교
+		List<IndicatorUtil.IndicatorPoint> frontendRsi = IndicatorUtil.calculateRSI(frontendCandles, 14);
+		List<IndicatorUtil.IndicatorPoint> backendRsi = backend.getRsi();
+		List<Map<String, Object>> rsiDiffList = new ArrayList<>();
+		for (int i = 0; i < Math.min(frontendRsi.size(), backendRsi.size()); i++) {
+			var f = frontendRsi.get(i);
+			var b = backendRsi.get(i);
+			if (f.getValue() == null || b.getValue() == null)
+				continue;
+			double diff = Math.abs(f.getValue() - b.getValue());
+			rsiDiffList
+				.add(Map.of("time", f.getTime(), "frontend", f.getValue(), "backend", b.getValue(), "diff", diff));
+		}
+		result.put("rsi", rsiDiffList);
 
-		int rsiPeriod = 14, emaPeriod = 14, smaPeriod = 20, vwbbPeriod = 20, multiplier = 2;
-		int stochRsiPeriod = 14, k = 3, d = 3;
-		String key = dto.getSymbol() + "_" + dto.getTimeframe();
+		// ✅ StochRSI 비교
+		List<IndicatorUtil.DualIndicatorPoint> frontendStoch = IndicatorUtil
+			.calculateStochRSI(frontendCandles, 14, 14, 3, 3);
+		List<IndicatorUtil.DualIndicatorPoint> backendStoch = backend.getStochRsi();
+		List<Map<String, Object>> stochDiffList = new ArrayList<>();
+		for (int i = 0; i < Math.min(frontendStoch.size(), backendStoch.size()); i++) {
+			var f = frontendStoch.get(i);
+			var b = backendStoch.get(i);
+			if (f.getK() == null || b.getK() == null || f.getD() == null || b.getD() == null)
+				continue;
+			double kdiff = Math.abs(f.getK() - b.getK());
+			double ddiff = Math.abs(f.getD() - b.getD());
+			stochDiffList
+				.add(Map
+					.of("time", f.getTime(), "frontend_k", f.getK(), "backend_k", b.getK(), "kdiff", kdiff,
+							"frontend_d", f.getD(), "backend_d", b.getD(), "ddiff", ddiff));
+		}
+		result.put("stochRsi", stochDiffList);
 
-		if (cache == null) {
-			log.warn("⚠ compareAllIndicators: 지표 캐시 없음: {}", key);
-			return new AllComparisonResultDto(List.of(), List.of(), List.of(), null, List.of(), List.of());
+		// ✅ VWBB 비교
+		IndicatorUtil.VWBB frontendVwbb = IndicatorUtil.calculateVWBB(frontendCandles, 20, 2.0);
+		IndicatorUtil.VWBB backendVwbb = backend.getVwbb();
+		List<Map<String, Object>> upperList = new ArrayList<>();
+		List<Map<String, Object>> lowerList = new ArrayList<>();
+		List<Map<String, Object>> basisList = new ArrayList<>();
+
+		for (int i = 0; i < Math.min(frontendVwbb.getUpper().size(), backendVwbb.getUpper().size()); i++) {
+			var f = frontendVwbb.getUpper().get(i);
+			var b = backendVwbb.getUpper().get(i);
+			if (f.getValue() == null || b.getValue() == null)
+				continue;
+			upperList
+				.add(Map
+					.of("time", f.getTime(), "frontend", f.getValue(), "backend", b.getValue(), "diff",
+							Math.abs(f.getValue() - b.getValue())));
+		}
+		for (int i = 0; i < Math.min(frontendVwbb.getLower().size(), backendVwbb.getLower().size()); i++) {
+			var f = frontendVwbb.getLower().get(i);
+			var b = backendVwbb.getLower().get(i);
+			if (f.getValue() == null || b.getValue() == null)
+				continue;
+			lowerList
+				.add(Map
+					.of("time", f.getTime(), "frontend", f.getValue(), "backend", b.getValue(), "diff",
+							Math.abs(f.getValue() - b.getValue())));
+		}
+		for (int i = 0; i < Math.min(frontendVwbb.getBasis().size(), backendVwbb.getBasis().size()); i++) {
+			var f = frontendVwbb.getBasis().get(i);
+			var b = backendVwbb.getBasis().get(i);
+			if (f.getValue() == null || b.getValue() == null)
+				continue;
+			basisList
+				.add(Map
+					.of("time", f.getTime(), "frontend", f.getValue(), "backend", b.getValue(), "diff",
+							Math.abs(f.getValue() - b.getValue())));
+		}
+		result.put("vwbb", Map.of("upper", upperList, "lower", lowerList, "basis", basisList));
+
+		List<CandleDto> backendCandles = backend.getCandles();
+		List<Map<String, Object>> candleDiffList = new ArrayList<>();
+
+		for (int i = 0; i < Math.min(frontendCandles.size(), backendCandles.size()); i++) {
+			var f = frontendCandles.get(i);
+			var b = backendCandles.get(i);
+			if (f == null || b == null)
+				continue;
+
+			Map<String, Object> entry = new HashMap<>();
+			entry.put("time", f.getTime());
+
+			entry
+				.put("frontend",
+						Map
+							.of("open", f.getOpen(), "high", f.getHigh(), "low", f.getLow(), "close", f.getClose(),
+									"volume", f.getVolume()));
+
+			entry
+				.put("backend",
+						Map
+							.of("open", b.getOpen(), "high", b.getHigh(), "low", b.getLow(), "close", b.getClose(),
+									"volume", b.getVolume()));
+
+			entry
+				.put("diff",
+						Map
+							.of("close", Math.abs(f.getClose() - b.getClose()), "volume",
+									Math.abs(f.getVolume() - b.getVolume())));
+
+			candleDiffList.add(entry);
 		}
 
-		long backendLastTime = cache.getRsi().get(cache.getRsi().size() - 1).getTime();
-		log.info("📥 백엔드에서 보유한 마지막 지표 시각: {}", IndicatorUtil.toKST(backendLastTime));
+		result.put("candles", candleDiffList);
 
-		List<IndicatorPoint> frontendRsi = IndicatorUtil.calculateRSI(candles, rsiPeriod);
-		List<IndicatorPoint> frontendEma = IndicatorUtil.calculateEMA(candles, emaPeriod);
-		List<IndicatorPoint> frontendSma = IndicatorUtil.calculateSMA(candles, smaPeriod);
-		VWBB frontendVwbb = IndicatorUtil.calculateVWBB(candles, vwbbPeriod, multiplier);
-		List<DualIndicatorPoint> frontendStoch = IndicatorUtil
-			.calculateStochRSI(candles, stochRsiPeriod, stochRsiPeriod, k, d);
-
-		Map<Long, Double> backendRsi = cache
-			.getRsi()
-			.stream()
-			.filter(p -> p != null && p.getValue() != null)
-			.collect(Collectors.toMap(p -> p.getTime() / 1000, IndicatorPoint::getValue));
-		Map<Long, Double> backendEma = cache
-			.getEma()
-			.stream()
-			.filter(p -> p != null && p.getValue() != null)
-			.collect(Collectors.toMap(p -> p.getTime() / 1000, IndicatorPoint::getValue));
-		Map<Long, Double> backendSma = cache
-			.getSma()
-			.stream()
-			.filter(p -> p != null && p.getValue() != null)
-			.collect(Collectors.toMap(p -> p.getTime() / 1000, IndicatorPoint::getValue));
-		Map<Long, Double> upper = cache
-			.getVwbb()
-			.getUpper()
-			.stream()
-			.filter(p -> p != null && p.getValue() != null)
-			.collect(Collectors.toMap(p -> p.getTime() / 1000, IndicatorPoint::getValue));
-		Map<Long, Double> lower = cache
-			.getVwbb()
-			.getLower()
-			.stream()
-			.filter(p -> p != null && p.getValue() != null)
-			.collect(Collectors.toMap(p -> p.getTime() / 1000, IndicatorPoint::getValue));
-		Map<Long, Double> basis = cache
-			.getVwbb()
-			.getBasis()
-			.stream()
-			.filter(p -> p != null && p.getValue() != null)
-			.collect(Collectors.toMap(p -> p.getTime() / 1000, IndicatorPoint::getValue));
-		Map<Long, DualIndicatorPoint> stoch = cache
-			.getStochRsi()
-			.stream()
-			.collect(Collectors.toMap(p -> p.getTime() / 1000, p -> p));
-
-		List<AllComparisonResultDto.ComparisonPoint> rsi = compareSingle(frontendRsi, backendRsi);
-		List<AllComparisonResultDto.ComparisonPoint> sma = compareSingle(frontendSma, backendSma);
-		List<AllComparisonResultDto.ComparisonPoint> ema = compareSingle(frontendEma, backendEma);
-
-		AllComparisonResultDto.VWBBComparison vwbb = new AllComparisonResultDto.VWBBComparison(
-				compareSingle(frontendVwbb.getUpper(), upper), compareSingle(frontendVwbb.getLower(), lower),
-				compareSingle(frontendVwbb.getBasis(), basis));
-
-		List<AllComparisonResultDto.StochRsiComparisonPoint> stochList = frontendStoch
-			.stream()
-			.filter(f -> stoch.containsKey(f.getTime()))
-			.map(f -> {
-				DualIndicatorPoint b = stoch.get(f.getTime());
-				double kDiff = diff(f.getK(), b.getK());
-				double dDiff = diff(f.getD(), b.getD());
-				return new AllComparisonResultDto.StochRsiComparisonPoint(f.getTime(), f.getK(), b.getK(), kDiff,
-						f.getD(), b.getD(), dDiff);
-			})
-			.toList();
-
-		List<CandleDto> backendCandles = cache
-			.getCandles()
-			.stream()
-			.map(c -> new CandleDto(c.getTime() / 1000, c.getOpen(), c.getHigh(), c.getLow(), c.getClose(),
-					c.getVolume()))
-			.collect(Collectors.toList());
-
-		Map<Long, CandleDto> frontMap = dto.getCandles().stream().collect(Collectors.toMap(CandleDto::getTime, c -> c));
-		Map<Long, CandleDto> backMap = backendCandles.stream().collect(Collectors.toMap(CandleDto::getTime, c -> c));
-
-		List<CandleComparison> candleComparisons = frontMap.keySet().stream().filter(backMap::containsKey).map(t -> {
-			CandleDto f = frontMap.get(t);
-			CandleDto b = backMap.get(t);
-			CandleDiff diff = new CandleDiff(Math.abs(f.getClose() - b.getClose()),
-					Math.abs(f.getVolume() - b.getVolume()));
-			return new CandleComparison(t, f, b, diff);
-		}).toList();
-
-		return new AllComparisonResultDto(rsi, sma, ema, vwbb, stochList, candleComparisons);
-	}
-
-	private List<AllComparisonResultDto.ComparisonPoint> compareSingle(List<IndicatorPoint> front,
-			Map<Long, Double> back) {
-		return front
-			.stream()
-			.filter(p -> p.getValue() != null && back.containsKey(p.getTime()))
-			.sorted(Comparator.comparing(IndicatorPoint::getTime).reversed())
-			.limit(30)
-			.map(p -> new AllComparisonResultDto.ComparisonPoint(p.getTime(), p.getValue(), back.get(p.getTime()),
-					diff(p.getValue(), back.get(p.getTime()))))
-			.sorted(Comparator.comparing(AllComparisonResultDto.ComparisonPoint::getTime))
-			.toList();
-	}
-
-	private double diff(Double a, Double b) {
-		if (a == null || b == null)
-			return Double.NaN;
-		return Math.abs(a - b);
+		return AllComparisonResultDto.builder().result(result).build();
 	}
 }

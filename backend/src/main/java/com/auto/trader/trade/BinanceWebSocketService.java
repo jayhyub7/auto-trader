@@ -30,7 +30,7 @@ public class BinanceWebSocketService {
 	@SuppressWarnings("deprecation")
 	@PostConstruct
 	public void connect() {
-		String url = "wss://stream.binance.com:9443/stream?streams=" + String
+		String url = "wss://fstream.binance.com/stream?streams=" + String
 			.join("/", "btcusdt@kline_1m", "btcusdt@kline_5m", "btcusdt@kline_15m", "btcusdt@kline_1h",
 					"btcusdt@kline_4h");
 		WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
@@ -58,8 +58,9 @@ public class BinanceWebSocketService {
 						double low = new BigDecimal(kline.get("l").asText()).doubleValue();
 						double close = new BigDecimal(kline.get("c").asText()).doubleValue();
 						double volume = new BigDecimal(kline.get("v").asText()).doubleValue();
-
-						indicatorProcessor.handleCandle("BTCUSDT", timeframe, time, open, high, low, close, volume);
+						boolean isFinal = kline.get("x").asBoolean();
+						indicatorProcessor
+							.handleCandle("BTCUSDT", timeframe, time, open, high, low, close, volume, isFinal);
 
 					} catch (Exception e) {
 						log.error("❌ WebSocket 메시지 처리 실패", e);

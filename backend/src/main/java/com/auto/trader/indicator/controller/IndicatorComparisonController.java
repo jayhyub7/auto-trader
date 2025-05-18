@@ -22,6 +22,6 @@ public class IndicatorComparisonController {
 
 	@PostMapping("/compare-all")
 	public AllComparisonResultDto compareAll(@RequestBody AllComparisonRequestDto request) {
-		return indicatorComparisonService.compareAllIndicators(request);
+		return indicatorComparisonService.compareAll(request);
 	}
 }

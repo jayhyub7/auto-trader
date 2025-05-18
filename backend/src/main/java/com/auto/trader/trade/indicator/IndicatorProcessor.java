@@ -52,8 +52,9 @@ public class IndicatorProcessor {
 			long endTime = now - (now % interval);
 			long startTime = endTime - 500 * interval;
 
+			// ✅ 선물 기준 REST API 호출
 			String url = String
-				.format("https://api.binance.com/api/v3/klines?symbol=%s&interval=%s&startTime=%d&endTime=%d", symbol,
+				.format("https://fapi.binance.com/fapi/v1/klines?symbol=%s&interval=%s&startTime=%d&endTime=%d", symbol,
 						timeframe, startTime, endTime);
 
 			Object[][] response = restTemplate.getForObject(url, Object[][].class);
@@ -72,17 +73,19 @@ public class IndicatorProcessor {
 				}
 			}
 
-			log.info("📥 초기 캔들 불러오기 완료 [{}]: {}개 | start={}, end={}", timeframe, result.size(), startTime, endTime);
+			log
+				.info("📥 [선물] 초기 캔들 불러오기 완료 [{}]: {}개 | start={}, end={}", timeframe, result.size(), startTime,
+						endTime);
 			return result;
 
 		} catch (Exception e) {
-			log.error("❌ 초기 캔들 로드 실패 [{}]", timeframe, e);
+			log.error("❌ [선물] 초기 캔들 로드 실패 [{}]", timeframe, e);
 			return new ArrayList<>();
 		}
 	}
 
 	public void handleCandle(String symbol, String timeframe, long time, double open, double high, double low,
-			double close, double volume) {
+			double close, double volume, boolean isFinal) {
 		try {
 			List<CandleDto> candles = candleMap.get(timeframe);
 			if (candles == null) {
@@ -98,21 +101,26 @@ public class IndicatorProcessor {
 				.low(low)
 				.close(close)
 				.volume(volume)
+				.isFinal(isFinal) // ✅ final 여부 저장
 				.build();
 
-			CandleDto last = candles.getLast();
-			System.out
-				.println("[" + timeframe + "] newCandle: " + IndicatorUtil.toKST(newCandle.getTime()) + " / last: "
-						+ IndicatorUtil.toKST(last.getTime()));
+			if (candles.isEmpty()) {
+				candles.add(newCandle);
+				return;
+			}
 
-			if (newCandle.getTime() > last.getTime()) {
+			CandleDto last = candles.getLast();
+
+			// 새로운 캔들이 생성되었고, 이전 캔들이 마감됨
+			if (newCandle.getTime() > last.getTime() && last.isFinal()) {
 				candles.add(newCandle);
+				// 현재 캔들 진행중이면 현재캔들에 덮어쓰기
 			} else if (newCandle.getTime() == last.getTime()) {
-				candles.removeLast();
-				candles.add(newCandle);
+				candles.set(candles.size() - 1, newCandle);
 			}
 
 			indicatorCalculator.calculateAndStore(symbol, timeframe, candles);
+
 		} catch (Exception e) {
 			log.error("❌ handleCandle 처리 실패", e);
 		}

@@ -1,4 +1,4 @@
-// IndicatorComparison.tsx
+// IndicatorComparison.tsx (한글 라벨 + 색상 강조 적용)
 
 import React, { useState } from "react";
 import {
@@ -9,7 +9,7 @@ import { Candle, formatTimestampKST } from "@/shared/util/indicatorUtil";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
-const API_URL = "https://api.binance.com/api/v3/klines";
+const API_URL = "https://fapi.binance.com/fapi/v1/klines";
 const SYMBOL = "BTCUSDT";
 
 const INTERVAL_MS = {
@@ -22,6 +22,13 @@ const INTERVAL_MS = {
 } as const;
 type Interval = keyof typeof INTERVAL_MS;
 
+const TABS: { key: string; label: string }[] = [
+  { key: "rsi", label: "RSI" },
+  { key: "stochRsi", label: "Stoch RSI" },
+  { key: "vwbb", label: "VWBB" },
+  { key: "candles", label: "Candles" },
+];
+
 const IndicatorComparison = () => {
   const [result, setResult] = useState<AllComparisonResponse | null>(null);
   const [interval, setInterval] = useState<Interval>("1m");
@@ -29,12 +36,13 @@ const IndicatorComparison = () => {
   const fetchLatestCandles = async (): Promise<Candle[]> => {
     const intervalMs = INTERVAL_MS[interval];
     const now = Date.now();
-    const endTime = now - (now % intervalMs);
+    const endTime = now - (now % intervalMs) + intervalMs;
     const startTime = endTime - 500 * intervalMs;
     const res = await fetch(
       `${API_URL}?symbol=${SYMBOL}&interval=${interval}&startTime=${startTime}&endTime=${endTime}`
     );
     const raw = await res.json();
+
     return raw.map((d: any) => ({
       time: d[0] / 1000,
       open: +d[1],
@@ -55,80 +63,85 @@ const IndicatorComparison = () => {
   const handleCompare = async () => {
     const candles = await fetchLatestCandles();
     const res = await compareAllIndicators(SYMBOL, interval, candles);
+
+    console.log(
+      "마지막 캔들 시간 : ",
+      formatTimestampKST(candles[candles.length - 1].time)
+    );
     const filtered = Object.fromEntries(
-      Object.entries(res).map(([key, value]) => {
+      Object.entries(res.result).map(([key, value]) => {
         if (key === "vwbb" && typeof value === "object" && value !== null) {
           return [
             key,
             {
               upper: Array.isArray(value.upper)
-                ? value.upper.filter(isValid)
+                ? value.upper.filter(isValid).sort((a, b) => b.time - a.time)
                 : [],
               lower: Array.isArray(value.lower)
-                ? value.lower.filter(isValid)
+                ? value.lower.filter(isValid).sort((a, b) => b.time - a.time)
                 : [],
               basis: Array.isArray(value.basis)
-                ? value.basis.filter(isValid)
+                ? value.basis.filter(isValid).sort((a, b) => b.time - a.time)
                 : [],
             },
           ];
         } else if (Array.isArray(value)) {
-          return [key, value.filter(isValid)];
+          return [key, value.filter(isValid).sort((a, b) => b.time - a.time)];
         }
         return [key, value];
       })
     );
+
     setResult({ ...filtered });
   };
 
-  const getSummaryMessage = (key: string, value: any): string => {
-    const getAvgDiff = (arr: any[], diffKey = "diff") => {
-      const valid = arr
-        .map((item) => item?.[diffKey])
-        .filter((d) => typeof d === "number" && !isNaN(d));
-      if (valid.length === 0) return null;
-      const avg = valid.reduce((a, b) => a + b, 0) / valid.length;
-      let message = "";
-      if (avg < 0.001) message = "✅ 오차가 거의 없습니다.";
-      else if (avg < 1) message = "⚠️ 약간의 오차가 있습니다.";
-      else message = "❗ 오차가 높습니다.";
-      return `${message} (평균오차: ${avg.toFixed(4)})`;
-    };
+  const getAvgDiff = (arr: any[], diffKey = "diff") => {
+    const valid = arr
+      .map((item) => item?.[diffKey])
+      .filter((d) => typeof d === "number" && !isNaN(d));
+    if (valid.length === 0) return null;
+    const avg = valid.reduce((a, b) => a + b, 0) / valid.length;
+    if (avg < 0.001) return "✅ 오차가 거의 없습니다.";
+    if (avg < 1)
+      return `⚠️ 약간의 오차가 있습니다. (평균오차: ${avg.toFixed(4)})`;
+    return `❗ 오차가 높습니다. (평균오차: ${avg.toFixed(4)})`;
+  };
 
-    if (key === "vwbb" && typeof value === "object" && value !== null) {
-      const upperMsg = getAvgDiff(value.upper);
-      const lowerMsg = getAvgDiff(value.lower);
-      const basisMsg = getAvgDiff(value.basis);
-      return [
-        `🔼 Upper: ${upperMsg ?? "데이터 없음"}`,
-        `🔽 Lower: ${lowerMsg ?? "데이터 없음"}`,
-        `📊 Basis: ${basisMsg ?? "데이터 없음"}`,
-      ].join("\n");
-    }
+  const hasContent = (v: any): boolean => {
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === "object" && v !== null)
+      return Object.values(v).some(isValid);
+    return false;
+  };
 
-    if (key === "stochRsi" && Array.isArray(value)) {
-      const kMsg = getAvgDiff(value, "kdiff");
-      const dMsg = getAvgDiff(value, "ddiff");
-      return [
-        `🟡 K: ${kMsg ?? "데이터 없음"}`,
-        `🔵 D: ${dMsg ?? "데이터 없음"}`,
-      ].join("\n");
-    }
+  const renderColoredRow = (item: any) => {
+    const diff =
+      typeof item.diff === "number"
+        ? item.diff.toFixed(4)
+        : item.diff?.close !== undefined
+        ? `Close: ${item.diff.close.toFixed(
+            4
+          )}, Vol: ${item.diff.volume?.toFixed(4)}`
+        : "-";
 
-    if (key === "candles" && Array.isArray(value)) {
-      const volumeMsg = getAvgDiff(
-        value.map((v) => ({ diff: v?.diff?.volume }))
-      );
-      return `📦 Volume: ${volumeMsg ?? "데이터 없음"}`;
-    }
-
-    if (!Array.isArray(value) || value.length === 0)
-      return "비교할 데이터가 없습니다.";
-    return getAvgDiff(value) ?? "비교할 데이터가 없습니다.";
+    return (
+      <div className="p-3 bg-gray-200 rounded text-xs font-mono">
+        <div className="text-gray-500 mb-1">
+          🕒 {formatTimestampKST(item.time)}
+        </div>
+        <div className="text-green-600">
+          프론트: {JSON.stringify(item.frontend)}
+        </div>
+        <div className="text-purple-600">
+          백엔드: {JSON.stringify(item.backend)}
+        </div>
+        <div className="font-bold text-blue-600">diff: {diff}</div>
+      </div>
+    );
   };
 
   return (
-    <div className="p-6 text-white bg-black min-h-screen">
+    <div className="p-6 text-black bg-gray-100 min-h-screen">
       <h1 className="text-2xl font-bold mb-4">
         📊 지표 비교 (백엔드 vs 프론트)
       </h1>
@@ -149,7 +162,7 @@ const IndicatorComparison = () => {
         ))}
         <button
           onClick={handleCompare}
-          className="ml-4 px-5 py-2 bg-blue-600 hover:bg-blue-700 rounded shadow"
+          className="ml-4 px-5 py-2 bg-blue-600 hover:bg-blue-700 rounded shadow text-white"
         >
           🔍 비교 실행
         </button>
@@ -158,98 +171,125 @@ const IndicatorComparison = () => {
       {result && (
         <Tabs defaultValue="rsi" className="w-full">
           <TabsList className="mb-4 flex flex-wrap gap-2 justify-start">
-            {Object.keys(result).map((key) => (
+            {TABS.filter(
+              ({ key }) => result[key] && hasContent(result[key])
+            ).map(({ key, label }) => (
               <TabsTrigger
                 key={key}
                 value={key}
                 className="font-semibold text-left px-4"
               >
-                {key.toUpperCase()}
+                {label}
               </TabsTrigger>
             ))}
           </TabsList>
 
-          {Object.entries(result).map(([key, value]) => {
-            let sortedValue = value;
+          {TABS.map(({ key, label }) => {
+            const value = result[key];
+            if (!value || !hasContent(value)) return null;
+
+            let summary = null;
             if (key === "vwbb" && typeof value === "object") {
-              sortedValue = {
-                upper: [...value.upper].sort((a, b) => b.time - a.time),
-                lower: [...value.lower].sort((a, b) => b.time - a.time),
-                basis: [...value.basis].sort((a, b) => b.time - a.time),
-              };
-            } else if (Array.isArray(value) && value[0]?.time) {
-              sortedValue = [...value].sort((a, b) => b.time - a.time);
+              summary = [
+                `🔼 Upper: ${getAvgDiff(value.upper) ?? "데이터 없음"}`,
+                `🔽 Lower: ${getAvgDiff(value.lower) ?? "데이터 없음"}`,
+                `📊 Basis: ${getAvgDiff(value.basis) ?? "데이터 없음"}`,
+              ].join("\n");
+            } else if (key === "stochRsi") {
+              summary = [
+                `🟡 K: ${getAvgDiff(value, "kdiff") ?? "데이터 없음"}`,
+                `🔵 D: ${getAvgDiff(value, "ddiff") ?? "데이터 없음"}`,
+              ].join("\n");
+            } else {
+              summary = getAvgDiff(value);
             }
 
             return (
               <TabsContent key={key} value={key}>
-                <Card className="bg-zinc-900 text-sm">
+                <Card className="bg-white text-sm">
                   <CardContent className="p-4 space-y-3">
-                    <div className="text-base font-semibold text-green-400 mb-2 whitespace-pre-line">
-                      {getSummaryMessage(key, sortedValue)}
+                    <div className="text-base font-semibold text-green-600 mb-2 whitespace-pre-line">
+                      {summary ?? "비교할 데이터가 없습니다."}
                     </div>
 
-                    {key === "vwbb" && typeof sortedValue === "object" ? (
-                      sortedValue.upper.map((_, idx: number) => {
-                        const upper = sortedValue.upper[idx];
-                        const lower = sortedValue.lower[idx];
-                        const basis = sortedValue.basis[idx];
-                        if (!upper || !lower || !basis) return null;
-                        return (
-                          <div
-                            key={`vwbb-${idx}`}
-                            className="p-3 bg-zinc-800 rounded-md text-gray-200 font-mono mb-2"
-                          >
-                            <pre className="whitespace-pre-wrap text-gray-300 text-xs">
-                              {JSON.stringify(
-                                {
-                                  time: `${upper.time} (${formatTimestampKST(
-                                    upper.time
-                                  )})`,
-                                  upperfrontend: upper.frontend,
-                                  upperbackend: upper.backend,
-                                  upperdiff: upper.diff,
-                                  basisfrontend: basis.frontend,
-                                  basisbackend: basis.backend,
-                                  basisdiff: basis.diff,
-                                  lowerfrontend: lower.frontend,
-                                  lowerbackend: lower.backend,
-                                  lowerdiff: lower.diff,
-                                },
-                                null,
-                                2
-                              )}
-                            </pre>
-                          </div>
-                        );
-                      })
-                    ) : Array.isArray(sortedValue) ? (
-                      sortedValue.map((item: any, idx: number) => (
-                        <div
-                          key={idx}
-                          className="p-3 bg-zinc-800 rounded-md text-gray-200 font-mono"
-                        >
-                          <pre className="whitespace-pre-wrap text-gray-300 text-xs">
-                            {JSON.stringify(
-                              item.time
-                                ? {
-                                    ...item,
-                                    time: `${item.time} (${formatTimestampKST(
-                                      item.time
-                                    )})`,
-                                  }
-                                : item,
-                              null,
-                              2
-                            )}
-                          </pre>
-                        </div>
-                      ))
-                    ) : (
-                      <pre className="whitespace-pre-wrap text-gray-300">
-                        {JSON.stringify(sortedValue, null, 2)}
-                      </pre>
-                    )}
+                    <div className="space-y-2">
+                      {key === "vwbb" && typeof value === "object"
+                        ? value.upper.map((_, i) => {
+                            const u = value.upper[i];
+                            const l = value.lower[i];
+                            const b = value.basis[i];
+                            if (!u || !l || !b) return null;
+                            return (
+                              <div
+                                key={i}
+                                className="p-3 bg-gray-200 rounded text-xs font-mono"
+                              >
+                                <pre>
+                                  {JSON.stringify(
+                                    {
+                                      time: formatTimestampKST(u.time),
+                                      upper: u,
+                                      basis: b,
+                                      lower: l,
+                                    },
+                                    null,
+                                    2
+                                  )}
+                                </pre>
+                              </div>
+                            );
+                          })
+                        : key === "stochRsi"
+                        ? value.map((item: any, idx: number) => (
+                            <div
+                              key={idx}
+                              className="p-3 bg-gray-200 rounded text-xs font-mono"
+                            >
+                              <div className="text-gray-500 mb-1">
+                                🕒 {formatTimestampKST(item.time)}
+                              </div>
+                              <div className="text-green-600">
+                                프론트 K: {item.frontend_k}
+                              </div>
+                              <div className="text-purple-600">
+                                백엔드 K: {item.backend_k}
+                              </div>
+                              <div
+                                className={`font-bold ${
+                                  item.kdiff > 10
+                                    ? "text-red-500"
+                                    : item.kdiff < 1
+                                    ? "text-green-600"
+                                    : "text-yellow-500"
+                                }`}
+                              >
+                                K diff: {item.kdiff?.toFixed(4)}
+                              </div>
+                              <div className="text-green-600 mt-2">
+                                프론트 D: {item.frontend_d}
+                              </div>
+                              <div className="text-purple-600">
+                                백엔드 D: {item.backend_d}
+                              </div>
+                              <div
+                                className={`font-bold ${
+                                  item.ddiff > 10
+                                    ? "text-red-500"
+                                    : item.ddiff < 1
+                                    ? "text-green-600"
+                                    : "text-yellow-500"
+                                }`}
+                              >
+                                D diff: {item.ddiff?.toFixed(4)}
+                              </div>
+                            </div>
+                          ))
+                        : Array.isArray(value)
+                        ? value.map((item: any, idx: number) => (
+                            <div key={idx}>{renderColoredRow(item)}</div>
+                          ))
+                        : null}
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
