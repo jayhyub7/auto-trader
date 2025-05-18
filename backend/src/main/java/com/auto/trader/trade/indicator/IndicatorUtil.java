@@ -179,7 +179,7 @@ public class IndicatorUtil {
 		return result;
 	}
 
-	public static VWBB calculateVWBB(List<CandleDto> candles, int period, double multiplier, double volumeWeightRatio) {
+	public static VWBB calculateVWBB(List<CandleDto> candles, int period, double multiplier) {
 		int size = candles.size();
 		List<Double> vwma = new ArrayList<>(Collections.nCopies(size, null));
 		List<Double> std = new ArrayList<>(Collections.nCopies(size, null));
@@ -188,7 +188,8 @@ public class IndicatorUtil {
 			double volSum = 0, priceVolSum = 0;
 			for (int j = i - period + 1; j <= i; j++) {
 				double price = candles.get(j).getClose();
-				double volume = (candles.get(j).getVolume() != 0 ? candles.get(j).getVolume() : 1) * volumeWeightRatio;
+				double rawVolume = candles.get(j).getVolume();
+				double volume = (rawVolume > 0 ? rawVolume : 1) * price; // ✅ 수량 × 가격 → USDT 기준
 				volSum += volume;
 				priceVolSum += price * volume;
 			}

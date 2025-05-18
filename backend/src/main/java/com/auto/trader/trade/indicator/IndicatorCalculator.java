@@ -31,7 +31,7 @@ public class IndicatorCalculator {
 			List<IndicatorUtil.IndicatorPoint> sma = IndicatorUtil.calculateSMA(trimmed, 14);
 			List<IndicatorUtil.DualIndicatorPoint> stoch = IndicatorUtil.calculateStochRSI(trimmed, 14, 14, 3, 3);
 
-			IndicatorUtil.VWBB vwbb = IndicatorUtil.calculateVWBB(trimmed, 20, 2, 0.5);
+			IndicatorUtil.VWBB vwbb = IndicatorUtil.calculateVWBB(trimmed, 20, 2);
 
 			double currentPrice = candles.get(candles.size() - 1).getClose();
 

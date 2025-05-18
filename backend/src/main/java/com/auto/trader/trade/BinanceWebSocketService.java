@@ -1,3 +1,5 @@
+// 파일: BinanceWebSocketService.java
+
 package com.auto.trader.trade;
 
 import java.math.BigDecimal;
@@ -27,12 +29,9 @@ public class BinanceWebSocketService {
 
 	private final IndicatorProcessor indicatorProcessor;
 
-	private volatile double lastPrice = 0;
-	private volatile long lastTimestamp = 0;
-
 	@PostConstruct
 	public void connect() {
-		String url = "wss://stream.binance.com:9443/ws/btcusdt@trade";
+		String url = "wss://stream.binance.com:9443/ws/btcusdt@kline_1m";
 		WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
 
 		Executors.newSingleThreadExecutor().submit(() -> {
@@ -48,12 +47,16 @@ public class BinanceWebSocketService {
 				public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) {
 					try {
 						JsonNode json = mapper.readTree(message.getPayload().toString());
-						BigDecimal price = new BigDecimal(json.get("p").asText());
-						long timestamp = json.get("T").asLong();
-
-						lastPrice = price.doubleValue(); // 👉 최신 가격 저장
-						lastTimestamp = timestamp; // 👉 최신 시간 저장
-
+						JsonNode kline = json.get("k");
+						if (kline != null && kline.get("x").asBoolean()) {
+							long time = kline.get("t").asLong();
+							double open = new BigDecimal(kline.get("o").asText()).doubleValue();
+							double high = new BigDecimal(kline.get("h").asText()).doubleValue();
+							double low = new BigDecimal(kline.get("l").asText()).doubleValue();
+							double close = new BigDecimal(kline.get("c").asText()).doubleValue();
+							double volume = new BigDecimal(kline.get("v").asText()).doubleValue();
+							indicatorProcessor.handleCandle("BTCUSDT", time, open, high, low, close, volume);
+						}
 					} catch (Exception e) {
 						log.error("❌ WebSocket 메시지 처리 실패", e);
 					}
@@ -76,14 +79,4 @@ public class BinanceWebSocketService {
 			}, headers, URI.create(url));
 		});
 	}
-
-	// ✅ 1초마다 마지막 가격을 기반으로 처리
-	@jakarta.annotation.PostConstruct
-	@org.springframework.scheduling.annotation.Scheduled(fixedRate = 1000)
-	public void processLatestPrice() {
-		if (lastPrice != 0 && lastTimestamp != 0) {
-			indicatorProcessor.handleTick("BTCUSDT", lastPrice, lastTimestamp);
-		}
-	}
-
 }

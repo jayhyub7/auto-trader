@@ -76,7 +76,7 @@ public class IndicatorComparisonService {
 		List<IndicatorPoint> frontendRsi = IndicatorUtil.calculateRSI(candles, rsiPeriod);
 		List<IndicatorPoint> frontendEma = IndicatorUtil.calculateEMA(candles, emaPeriod);
 		List<IndicatorPoint> frontendSma = IndicatorUtil.calculateSMA(candles, smaPeriod);
-		VWBB frontendVwbb = IndicatorUtil.calculateVWBB(candles, vwbbPeriod, multiplier, 0.5);
+		VWBB frontendVwbb = IndicatorUtil.calculateVWBB(candles, vwbbPeriod, multiplier);
 		List<DualIndicatorPoint> frontendStoch = IndicatorUtil
 			.calculateStochRSI(candles, stochRsiPeriod, stochRsiPeriod, k, d);
 

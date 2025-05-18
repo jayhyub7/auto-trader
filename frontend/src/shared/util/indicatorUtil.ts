@@ -125,8 +125,7 @@ export const calculateStochRSI = (
 export const calculateVWBB = (
   candles: Candle[],
   period = 20,
-  multiplier = 2,
-  volumeWeightRatio = 0.5
+  multiplier = 2
 ): {
   upper: IndicatorPoint[];
   lower: IndicatorPoint[];
@@ -138,7 +137,7 @@ export const calculateVWBB = (
     let priceVolSum = 0;
     for (let j = i - period + 1; j <= i; j++) {
       const price = candles[j].close;
-      const volume = (candles[j].volume ?? 1) * volumeWeightRatio;
+      const volume = candles[j].volume ?? 1; // ✅ volumeWeightRatio 제거
       volSum += volume;
       priceVolSum += price * volume;
     }

@@ -110,6 +110,23 @@ const IndicatorComparison = () => {
         `🔵 D: ${dMsg ?? "데이터 없음"}`,
       ].join("\n");
     }
+    const getAvgVolumeDiff = (arr: any[]) => {
+      const valid = arr
+        .map((item) => item?.diff?.volume)
+        .filter((v) => typeof v === "number" && !isNaN(v));
+      if (valid.length === 0) return null;
+      const avg = valid.reduce((a, b) => a + b, 0) / valid.length;
+
+      if (avg < 0.001) return "✅ 오차가 거의 없습니다.";
+      if (avg < 1) return "⚠️ 약간의 오차가 있습니다.";
+      return `❗ 오차가 높습니다. (평균오차: ${avg.toFixed(4)})`;
+    };
+    if (key === "candles" && Array.isArray(value)) {
+      const volumeMsg =
+        getAvgVolumeDiff(value, "volumediff") ??
+        getAvgVolumeDiff(value, "volume");
+      return `📦 Volume: ${volumeMsg ?? "데이터 없음"}`;
+    }
 
     if (!Array.isArray(value) || value.length === 0) {
       return "비교할 데이터가 없습니다.";
