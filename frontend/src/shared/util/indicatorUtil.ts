@@ -31,15 +31,33 @@ export const calculateEMA = (data: Candle[], period = 20): IndicatorPoint[] => {
   });
 };
 
-export const calculateSMA = (data: Candle[], period = 14): IndicatorPoint[] => {
-  return data.map((d, i) => {
-    if (i < period - 1) return { time: d.time, value: null };
-    const sum = data
-      .slice(i - period + 1, i + 1)
-      .reduce((acc, cur) => acc + cur.close, 0);
-    return { time: d.time, value: sum / period };
-  });
-};
+export function calculateSMA(
+  data: IndicatorPoint[],
+  period: number
+): IndicatorPoint[] {
+  const result: IndicatorPoint[] = [];
+
+  for (let i = 0; i < data.length; i++) {
+    if (i < period - 1 || data[i].value == null) {
+      result.push({ time: data[i].time, value: null });
+      continue;
+    }
+
+    const window = data.slice(i - period + 1, i + 1);
+    const valid = window.filter((d) => typeof d.value === "number");
+
+    if (valid.length < period) {
+      result.push({ time: data[i].time, value: null });
+      continue;
+    }
+
+    const avg = valid.reduce((sum, d) => sum + d.value!, 0) / valid.length;
+
+    result.push({ time: data[i].time, value: avg });
+  }
+
+  return result;
+}
 
 export const calculateRSI = (data: Candle[], period = 14): IndicatorPoint[] => {
   let avgGain = 0;
@@ -73,54 +91,50 @@ export const calculateRSI = (data: Candle[], period = 14): IndicatorPoint[] => {
   return result;
 };
 
-export const calculateStochRSI = (
+export function calculateStochRSI(
   data: Candle[],
   rsiPeriod = 14,
   stochPeriod = 14,
   kPeriod = 3,
   dPeriod = 3
-): DualIndicatorPoint[] => {
+): DualIndicatorPoint[] {
   const rsi = calculateRSI(data, rsiPeriod);
-  const stochK: (number | null)[] = new Array(rsi.length).fill(null);
+  const stochRsi: IndicatorPoint[] = [];
 
-  for (let i = stochPeriod; i < rsi.length; i++) {
-    const slice = rsi.slice(i - stochPeriod + 1, i + 1).map((d) => d.value);
-    const valid = slice.filter((v): v is number => v !== null);
+  for (let i = 0; i < rsi.length; i++) {
+    if (i < stochPeriod - 1) {
+      stochRsi.push({ time: rsi[i].time, value: null });
+      continue;
+    }
 
-    if (valid.length < stochPeriod) continue;
+    const sliced = rsi.slice(i - stochPeriod + 1, i + 1);
+    const minRsi = Math.min(...sliced.map((d) => d.value!));
+    const maxRsi = Math.max(...sliced.map((d) => d.value!));
 
-    const current = rsi[i].value;
-    const min = Math.min(...valid);
-    const max = Math.max(...valid);
-
-    if (current != null && max !== min) {
-      stochK[i] = ((current - min) / (max - min)) * 100;
+    const denominator = maxRsi - minRsi;
+    if (denominator === 0) {
+      stochRsi.push({ time: rsi[i].time, value: 0 });
+    } else {
+      const value = ((rsi[i].value! - minRsi) / denominator) * 100;
+      stochRsi.push({ time: rsi[i].time, value });
     }
   }
 
-  const smooth = (
-    arr: (number | null)[],
-    period: number
-  ): (number | null)[] => {
-    return arr.map((_, i) => {
-      if (i < period - 1) return null;
-      const values = arr
-        .slice(i - period + 1, i + 1)
-        .filter((v): v is number => v !== null);
-      if (values.length < period) return null;
-      return values.reduce((sum, v) => sum + v, 0) / period;
+  // ✅ Binance 기준으로 smoothing: SMA 사용
+  const smoothedK = calculateSMA(stochRsi, kPeriod);
+  const smoothedD = calculateSMA(smoothedK, dPeriod);
+
+  const result: DualIndicatorPoint[] = [];
+  for (let i = 0; i < stochRsi.length; i++) {
+    result.push({
+      time: stochRsi[i].time,
+      k: smoothedK[i]?.value ?? null,
+      d: smoothedD[i]?.value ?? null,
     });
-  };
+  }
 
-  const smoothedK = smooth(stochK, kPeriod);
-  const smoothedD = smooth(smoothedK, dPeriod);
-
-  return rsi.map((d, i) => ({
-    time: d.time,
-    k: smoothedK[i],
-    d: smoothedD[i],
-  }));
-};
+  return result;
+}
 
 export const calculateVWBB = (
   candles: Candle[],

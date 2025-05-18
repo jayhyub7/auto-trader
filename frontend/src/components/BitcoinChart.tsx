@@ -12,7 +12,7 @@ import SubChart from "./SubChart";
 import { Timeframe, TIMEFRAME_LABELS } from "@/constants/timeframe";
 
 const API_URL = "https://fapi.binance.com/fapi/v1/klines";
-const SOCKET_URL = "wss://fstream.binance.com:9443/ws/btcusdt@kline_";
+const SOCKET_URL = "wss://fstream.binance.com/ws/btcusdt@kline_";
 const DEFAULT_INTERVAL = Timeframe.ONE_MINUTE;
 const INTERVAL_MAP = {
   [Timeframe.ONE_MINUTE]: "1m",
@@ -230,7 +230,7 @@ const BitcoinChart = () => {
         if (!last) return;
 
         // 새로운 캔들이 생성되었고, 이전 캔들이 마감됨
-        if (newCandle.time > last.time && last.final && newCandle.final) {
+        if (newCandle.time > last.time && last.final) {
           candlesRef.current.push(newCandle);
 
           // 현재 캔들 진행중이면 현재캔들에 덮어쓰기
