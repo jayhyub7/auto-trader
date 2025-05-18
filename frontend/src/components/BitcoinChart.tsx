@@ -106,10 +106,21 @@ const BitcoinChart = () => {
     candleSeriesRef.current = candleSeries;
 
     const fetchInitialCandles = async () => {
-      const now = Date.now();
-      const endTime = now - (now % 60000);
-      const startTime = endTime - 500 * 60 * 1000;
       const interval = INTERVAL_MAP[currentInterval];
+
+      const intervalMs = {
+        "1m": 60_000,
+        "3m": 3 * 60_000,
+        "5m": 5 * 60_000,
+        "15m": 15 * 60_000,
+        "1h": 60 * 60_000,
+        "4h": 4 * 60 * 60_000,
+      }[interval];
+
+      const now = Date.now();
+      const endTime = now - (now % intervalMs); // ✅ 분봉 기준 정각
+      const startTime = endTime - intervalMs * 500; // ✅ 분봉당 500개
+
       const res = await fetch(
         `${API_URL}?symbol=BTCUSDT&interval=${interval}&startTime=${startTime}&endTime=${endTime}`
       );
@@ -122,12 +133,11 @@ const BitcoinChart = () => {
         close: +d[4],
         final: true,
       }));
+
       candlesRef.current = candles;
-      candleSeries.setData(candles);
-      chart.timeScale().fitContent();
+      candleSeriesRef.current.setData(candles);
+      chartRef.current.timeScale().fitContent();
       updateIndicators();
-      // ✅ 가장 최신 30개 캔들 로그
-      const latest30 = candles.slice(-30);
     };
 
     const updateIndicators = () => {
@@ -216,27 +226,21 @@ const BitcoinChart = () => {
         };
 
         const last = candlesRef.current.at(-1);
+
         if (!last) return;
-        console.log(
-          "newCandle.time : " +
-            formatTimestampKST(newCandle.time) +
-            ", last.time : " +
-            formatTimestampKST(last.time)
-        );
-        if (newCandle.time > last.time) {
+
+        // 새로운 캔들이 생성되었고, 이전 캔들이 마감됨
+        if (newCandle.time > last.time && last.final) {
           candlesRef.current.push(newCandle);
+
+          // 현재 캔들 진행중이면 현재캔들에 덮어쓰기
         } else if (newCandle.time === last.time) {
           candlesRef.current[candlesRef.current.length - 1] = newCandle;
         }
 
         try {
           candleSeriesRef.current?.update(newCandle);
-        } catch (err) {
-          console.warn(
-            "⏳ [skip] Chart not ready. update skipped once : ",
-            err.message
-          );
-        }
+        } catch (err) {}
 
         updateIndicators();
       };
