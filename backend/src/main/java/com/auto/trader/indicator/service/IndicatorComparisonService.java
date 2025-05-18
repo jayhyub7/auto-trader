@@ -9,10 +9,10 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
+import com.auto.trader.indicator.dto.AllComparisonRequestDto;
 import com.auto.trader.indicator.dto.AllComparisonResultDto;
 import com.auto.trader.indicator.dto.AllComparisonResultDto.CandleComparison;
 import com.auto.trader.indicator.dto.AllComparisonResultDto.CandleDiff;
-import com.auto.trader.indicator.dto.RsiComparisonRequestDto;
 import com.auto.trader.trade.dto.CandleDto;
 import com.auto.trader.trade.indicator.IndicatorCache;
 import com.auto.trader.trade.indicator.IndicatorMemoryStore;
@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class IndicatorComparisonService {
 
-	public AllComparisonResultDto compareAllIndicators(RsiComparisonRequestDto dto) {
+	public AllComparisonResultDto compareAllIndicators(AllComparisonRequestDto dto) {
 
 		// 🔍 백엔드 캐시의 마지막 캔들 시간 확인
 		IndicatorCache cache = IndicatorMemoryStore.get(dto.getSymbol() + "_" + dto.getTimeframe());

@@ -25,7 +25,7 @@ public class IndicatorProcessor {
 	private final RestTemplate restTemplate = new RestTemplate();
 	private final IndicatorCalculator indicatorCalculator;
 
-	private static final List<String> TIMEFRAMES = List.of("1m", "3m", "5m", "15m", "1h", "4h", "1d");
+	private static final List<String> TIMEFRAMES = List.of("1m", "3m", "5m", "15m", "1h", "4h");
 	private static final Map<String, Long> INTERVAL_MILLIS = Map
 		.of("1m", 60_000L, "3m", 3 * 60_000L, "5m", 5 * 60_000L, "15m", 15 * 60_000L, "1h", 60 * 60_000L, "4h",
 				4 * 60 * 60_000L, "1d", 24 * 60 * 60_000L);
@@ -34,11 +34,12 @@ public class IndicatorProcessor {
 	private final Map<String, CandleDto> currentCandleMap = new HashMap<>();
 
 	@PostConstruct
-	public void init() {
+	public void init() throws InterruptedException {
 		String symbol = "BTCUSDT";
 		for (String tf : TIMEFRAMES) {
 			List<CandleDto> candles = loadInitialCandles(symbol, tf);
 			candleMap.put(tf, candles);
+			Thread.sleep(200);
 			currentCandleMap.put(tf, null);
 			indicatorCalculator.calculateAndStore(symbol, tf, candles);
 		}
@@ -46,9 +47,10 @@ public class IndicatorProcessor {
 
 	private List<CandleDto> loadInitialCandles(String symbol, String timeframe) {
 		try {
+			long interval = INTERVAL_MILLIS.get(timeframe);
 			long now = System.currentTimeMillis();
-			long endTime = now - (now % 60_000); // 1분봉 정각 기준
-			long startTime = endTime - 500 * 60_000; // 500분 전
+			long endTime = now - (now % interval);
+			long startTime = endTime - 500 * interval;
 
 			String url = String
 				.format("https://api.binance.com/api/v3/klines?symbol=%s&interval=%s&startTime=%d&endTime=%d", symbol,
@@ -66,13 +68,11 @@ public class IndicatorProcessor {
 					c.setLow(Double.parseDouble((String) o[3]));
 					c.setClose(Double.parseDouble((String) o[4]));
 					c.setVolume(Double.parseDouble((String) o[5]));
-
 					result.add(c);
 				}
 			}
 
 			log.info("📥 초기 캔들 불러오기 완료 [{}]: {}개 | start={}, end={}", timeframe, result.size(), startTime, endTime);
-
 			return result;
 
 		} catch (Exception e) {
@@ -81,14 +81,13 @@ public class IndicatorProcessor {
 		}
 	}
 
-	public void handleCandle(String symbol, long time, double open, double high, double low, double close,
-			double volume) {
+	public void handleCandle(String symbol, String timeframe, long time, double open, double high, double low,
+			double close, double volume) {
 		try {
-			String tf = "1m";
-			List<CandleDto> candles = candleMap.get(tf);
+			List<CandleDto> candles = candleMap.get(timeframe);
 			if (candles == null) {
 				candles = new ArrayList<>();
-				candleMap.put(tf, candles);
+				candleMap.put(timeframe, candles);
 			}
 
 			CandleDto newCandle = CandleDto
@@ -103,8 +102,9 @@ public class IndicatorProcessor {
 
 			CandleDto last = candles.getLast();
 			System.out
-				.println("newCandle.getTime() : " + IndicatorUtil.toKST(newCandle.getTime()) + ", last.getTime() : + "
+				.println("[" + timeframe + "] newCandle: " + IndicatorUtil.toKST(newCandle.getTime()) + " / last: "
 						+ IndicatorUtil.toKST(last.getTime()));
+
 			if (newCandle.getTime() > last.getTime()) {
 				candles.add(newCandle);
 			} else if (newCandle.getTime() == last.getTime()) {
@@ -112,7 +112,7 @@ public class IndicatorProcessor {
 				candles.add(newCandle);
 			}
 
-			indicatorCalculator.calculateAndStore(symbol, tf, candles);
+			indicatorCalculator.calculateAndStore(symbol, timeframe, candles);
 		} catch (Exception e) {
 			log.error("❌ handleCandle 처리 실패", e);
 		}

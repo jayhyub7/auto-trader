@@ -9,24 +9,32 @@ import { Candle, formatTimestampKST } from "@/shared/util/indicatorUtil";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
-// ✅ 차트와 동일한 구조
 const API_URL = "https://api.binance.com/api/v3/klines";
 const SYMBOL = "BTCUSDT";
-const INTERVAL = "1m";
+
+const INTERVAL_MS = {
+  "1m": 60_000,
+  "3m": 3 * 60_000,
+  "5m": 5 * 60_000,
+  "15m": 15 * 60_000,
+  "1h": 60 * 60_000,
+  "4h": 4 * 60 * 60_000,
+} as const;
+type Interval = keyof typeof INTERVAL_MS;
 
 const IndicatorComparison = () => {
   const [result, setResult] = useState<AllComparisonResponse | null>(null);
+  const [interval, setInterval] = useState<Interval>("1m");
 
   const fetchLatestCandles = async (): Promise<Candle[]> => {
+    const intervalMs = INTERVAL_MS[interval];
     const now = Date.now();
-    const endTime = now - (now % 60000) + 60000; // ✅ 다음 정각까지 포함되게 보냄
-    const startTime = endTime - 500 * 60 * 1000;
+    const endTime = now - (now % intervalMs);
+    const startTime = endTime - 500 * intervalMs;
     const res = await fetch(
-      `${API_URL}?symbol=${SYMBOL}&interval=${INTERVAL}&startTime=${startTime}&endTime=${endTime}`
+      `${API_URL}?symbol=${SYMBOL}&interval=${interval}&startTime=${startTime}&endTime=${endTime}`
     );
     const raw = await res.json();
-    console.log("raw : ", raw);
-    console.log("마지막 : ", formatTimestampKST(raw[raw.length - 1][0] / 1000));
     return raw.map((d: any) => ({
       time: d[0] / 1000,
       open: +d[1],
@@ -46,9 +54,7 @@ const IndicatorComparison = () => {
 
   const handleCompare = async () => {
     const candles = await fetchLatestCandles();
-
-    const res = await compareAllIndicators(SYMBOL, INTERVAL, candles);
-
+    const res = await compareAllIndicators(SYMBOL, interval, candles);
     const filtered = Object.fromEntries(
       Object.entries(res).map(([key, value]) => {
         if (key === "vwbb" && typeof value === "object" && value !== null) {
@@ -72,7 +78,6 @@ const IndicatorComparison = () => {
         return [key, value];
       })
     );
-
     setResult({ ...filtered });
   };
 
@@ -83,12 +88,10 @@ const IndicatorComparison = () => {
         .filter((d) => typeof d === "number" && !isNaN(d));
       if (valid.length === 0) return null;
       const avg = valid.reduce((a, b) => a + b, 0) / valid.length;
-
       let message = "";
       if (avg < 0.001) message = "✅ 오차가 거의 없습니다.";
       else if (avg < 1) message = "⚠️ 약간의 오차가 있습니다.";
       else message = "❗ 오차가 높습니다.";
-
       return `${message} (평균오차: ${avg.toFixed(4)})`;
     };
 
@@ -96,7 +99,6 @@ const IndicatorComparison = () => {
       const upperMsg = getAvgDiff(value.upper);
       const lowerMsg = getAvgDiff(value.lower);
       const basisMsg = getAvgDiff(value.basis);
-
       return [
         `🔼 Upper: ${upperMsg ?? "데이터 없음"}`,
         `🔽 Lower: ${lowerMsg ?? "데이터 없음"}`,
@@ -107,36 +109,22 @@ const IndicatorComparison = () => {
     if (key === "stochRsi" && Array.isArray(value)) {
       const kMsg = getAvgDiff(value, "kdiff");
       const dMsg = getAvgDiff(value, "ddiff");
-
       return [
         `🟡 K: ${kMsg ?? "데이터 없음"}`,
         `🔵 D: ${dMsg ?? "데이터 없음"}`,
       ].join("\n");
     }
-    const getAvgVolumeDiff = (arr: any[]) => {
-      const valid = arr
-        .map((item) => item?.diff?.volume)
-        .filter((v) => typeof v === "number" && !isNaN(v));
-      if (valid.length === 0) return null;
-      const avg = valid.reduce((a, b) => a + b, 0) / valid.length;
 
-      if (avg < 0.001) return "✅ 오차가 거의 없습니다.";
-      if (avg < 1) return "⚠️ 약간의 오차가 있습니다.";
-      return `❗ 오차가 높습니다. (평균오차: ${avg.toFixed(4)})`;
-    };
     if (key === "candles" && Array.isArray(value)) {
-      const volumeMsg =
-        getAvgVolumeDiff(value, "volumediff") ??
-        getAvgVolumeDiff(value, "volume");
+      const volumeMsg = getAvgDiff(
+        value.map((v) => ({ diff: v?.diff?.volume }))
+      );
       return `📦 Volume: ${volumeMsg ?? "데이터 없음"}`;
     }
 
-    if (!Array.isArray(value) || value.length === 0) {
+    if (!Array.isArray(value) || value.length === 0)
       return "비교할 데이터가 없습니다.";
-    }
-
-    const diffMsg = getAvgDiff(value);
-    return diffMsg ?? "비교할 데이터가 없습니다.";
+    return getAvgDiff(value) ?? "비교할 데이터가 없습니다.";
   };
 
   return (
@@ -144,12 +132,28 @@ const IndicatorComparison = () => {
       <h1 className="text-2xl font-bold mb-4">
         📊 지표 비교 (백엔드 vs 프론트)
       </h1>
-      <button
-        onClick={handleCompare}
-        className="mb-6 px-5 py-2 bg-blue-600 hover:bg-blue-700 rounded shadow"
-      >
-        🔍 비교 실행
-      </button>
+
+      <div className="mb-4 flex gap-2">
+        {["1m", "3m", "5m", "15m", "1h", "4h"].map((v) => (
+          <button
+            key={v}
+            onClick={() => setInterval(v as Interval)}
+            className={`px-3 py-1 rounded font-semibold shadow text-xs ${
+              interval === v
+                ? "bg-yellow-400 text-black"
+                : "bg-gray-700 text-white"
+            }`}
+          >
+            {v}
+          </button>
+        ))}
+        <button
+          onClick={handleCompare}
+          className="ml-4 px-5 py-2 bg-blue-600 hover:bg-blue-700 rounded shadow"
+        >
+          🔍 비교 실행
+        </button>
+      </div>
 
       {result && (
         <Tabs defaultValue="rsi" className="w-full">
@@ -191,7 +195,6 @@ const IndicatorComparison = () => {
                         const lower = sortedValue.lower[idx];
                         const basis = sortedValue.basis[idx];
                         if (!upper || !lower || !basis) return null;
-
                         return (
                           <div
                             key={`vwbb-${idx}`}

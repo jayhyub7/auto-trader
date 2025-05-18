@@ -7,8 +7,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.auto.trader.indicator.dto.AllComparisonRequestDto;
 import com.auto.trader.indicator.dto.AllComparisonResultDto;
-import com.auto.trader.indicator.dto.RsiComparisonRequestDto;
 import com.auto.trader.indicator.service.IndicatorComparisonService;
 
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ public class IndicatorComparisonController {
 	private final IndicatorComparisonService indicatorComparisonService;
 
 	@PostMapping("/compare-all")
-	public AllComparisonResultDto compareAll(@RequestBody RsiComparisonRequestDto request) {
+	public AllComparisonResultDto compareAll(@RequestBody AllComparisonRequestDto request) {
 		return indicatorComparisonService.compareAllIndicators(request);
 	}
 }

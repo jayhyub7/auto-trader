@@ -39,7 +39,9 @@ public class IndicatorCalculator {
 
 			String key = symbol + "_" + timeframe;
 			IndicatorMemoryStore.put(key, cache);
-			log.info("✅ 지표 저장 완료, 기준 캔들: {}", IndicatorUtil.toKST(candles.get(candles.size() - 1).getTime()));
+			// log.info("✅ 지표 저장 완료, 기준 캔들: {}",
+			// IndicatorUtil.toKST(candles.get(candles.size() - 1).getTime()));
+			System.out.println("IndicatorMemoryStore.key : " + IndicatorMemoryStore.keys());
 		} catch (Exception e) {
 			log.error("❌ 지표 계산 실패 [{}_{}]", symbol, timeframe, e);
 		}
