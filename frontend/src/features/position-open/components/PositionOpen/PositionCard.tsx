@@ -40,6 +40,7 @@ const PositionCard = ({
   );
   const [amount, setAmount] = useState(openData?.amount ?? 0);
   const [percent, setPercent] = useState(0);
+  const [leverage, setLeverage] = useState(openData?.leverage ?? 10); // ✅ 추가
 
   useEffect(() => {
     if (openData) {
@@ -47,6 +48,7 @@ const PositionCard = ({
       setStopLoss(openData.stopLoss);
       setAmount(openData.amount);
       setAmountType(openData.amountType ?? AmountTypes.FIXED);
+      setLeverage(openData.leverage ?? 10); // ✅ 초기화
       if (openData.amountType === AmountTypes.PERCENT) {
         setPercent(openData.amount);
       } else {
@@ -80,6 +82,10 @@ const PositionCard = ({
         toast.error("금액은 최소 10 이상이어야 합니다.");
         return;
       }
+      if (!leverage || leverage <= 0) {
+        toast.error("레버리지는 1 이상이어야 합니다.");
+        return;
+      }
     }
 
     const payload: Omit<PositionOpenPayload, "status"> = {
@@ -89,6 +95,7 @@ const PositionCard = ({
       amountType: amountType ?? AmountTypes.FIXED,
       stopLoss,
       takeProfit,
+      leverage, // ✅ 포함
     };
     onUpdateStatus(openId, nextStatus, payload);
   };
@@ -96,18 +103,24 @@ const PositionCard = ({
   return (
     <div className="border p-4 rounded-xl shadow-sm space-y-2">
       <div className="flex justify-between items-center mb-2">
-        <div className="text-lg font-semibold">
-          {position.title}
+        <div className="text-lg font-semibold flex items-center gap-4">
+          <span>{position.title}</span>
           {position.direction === "LONG" && (
-            <span className="ml-2 text-green-400 text-sm font-semibold">
-              [롱]
-            </span>
+            <span className="text-green-400 text-sm font-semibold">[롱]</span>
           )}
           {position.direction === "SHORT" && (
-            <span className="ml-2 text-red-400 text-sm font-semibold">
-              [숏]
-            </span>
+            <span className="text-red-400 text-sm font-semibold">[숏]</span>
           )}
+          <div className="flex items-center gap-1 ml-4">
+            <input
+              type="number"
+              value={leverage}
+              onChange={(e) => setLeverage(Number(e.target.value))}
+              className="w-16 px-2 py-1 rounded bg-gray-700 border border-gray-600 text-sm"
+              min={1}
+            />
+            <span className="text-sm text-white">X</span>
+          </div>
         </div>
       </div>
 

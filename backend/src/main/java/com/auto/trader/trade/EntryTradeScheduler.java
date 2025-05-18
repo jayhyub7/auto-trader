@@ -9,12 +9,17 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.auto.trader.balance.dto.BalanceDto;
 import com.auto.trader.exchange.ExchangeRouter;
+import com.auto.trader.exchange.ExchangeService;
+import com.auto.trader.exchange.dto.OrderResult;
 import com.auto.trader.position.entity.Position;
 import com.auto.trader.position.entity.PositionOpen;
+import com.auto.trader.position.enums.AmountType;
 import com.auto.trader.position.enums.Direction;
-import com.auto.trader.position.enums.Operator;
-import com.auto.trader.position.enums.Timeframe;
+import com.auto.trader.position.enums.PositionOpenStatus;
+import com.auto.trader.position.evaluator.entry.EntryConditionEvaluator;
+import com.auto.trader.position.evaluator.entry.EntryEvaluatorRegistry;
 import com.auto.trader.position.repository.PositionOpenRepository;
 import com.auto.trader.position.service.PositionOpenService;
 import com.auto.trader.position.service.PositionService;
@@ -68,14 +73,10 @@ public class EntryTradeScheduler {
 	@Scheduled(fixedDelay = 1000)
 	@Transactional
 	public void checkEntryPosition() {
-
 		if (!entryLogManager.isEnabled())
 			return;
 
 		List<Position> activePositions = positionOpenService.findEntryPosition();
-		for (Position p : activePositions) {
-			p.getConditions().size();
-		}
 
 		for (Position position : activePositions) {
 			entryLogManager.log("━━━━━━━━━━━━━━━ [🔍 포지션 검사 시작] ━━━━━━━━━━━━━━━");
@@ -87,150 +88,111 @@ public class EntryTradeScheduler {
 				continue;
 			}
 
+			if (positionOpen.getStopLoss() == 0) {
+				entryLogManager.log("❌ StopLoss가 설정되지 않아 주문 실행 중단: {}", position.getTitle());
+				continue;
+			}
+
 			boolean isPass = true;
-
-			try {
-				for (var cond : position.getConditions()) {
-					Timeframe timeframe = cond.getTimeframe();
-					String key = "BTCUSDT_" + timeframe.getLabel();
-					IndicatorCache cache = IndicatorMemoryStore.get(key);
-
-					entryLogManager
-						.log("🧩 [조건 평가 시작] - 타입: {}, 연산자: {}, 타임프레임: {}", cond.getType(), cond.getOperator(),
-								timeframe);
-
-					if (cache == null) {
-						entryLogManager.log("⚠️ 지표 캐시 없음: {}", key);
-						isPass = false;
-						break;
-					}
-
-					switch (cond.getType()) {
-					case RSI -> {
-						var value = cond.getValue();
-						var rsiList = cache.getRsi();
-
-						if (!rsiList.isEmpty()) {
-							var latest = rsiList.get(rsiList.size() - 1);
-							double currentRsi = latest.getValue();
-							entryLogManager
-								.log("📈 [RSI 검사] 현재: {}, 기준: {}, 연산자: {}", currentRsi, value, cond.getOperator());
-
-							if (cond.getOperator() == Operator.이상) {
-								if (currentRsi < value) {
-									entryLogManager.log("❌ RSI 조건 실패: {} < {}", currentRsi, value);
-									isPass = false;
-								} else {
-									entryLogManager.log("✅ RSI 조건 통과");
-								}
-							} else if (cond.getOperator() == Operator.이하) {
-								if (currentRsi > value) {
-									entryLogManager.log("❌ RSI 조건 실패: {} > {}", currentRsi, value);
-									isPass = false;
-								} else {
-									entryLogManager.log("✅ RSI 조건 통과");
-								}
-							}
-						} else {
-							entryLogManager.log("⚠️ RSI 리스트 비어 있음");
-							isPass = false;
-						}
-					}
-
-					case STOCH_RSI -> {
-						var value = cond.getValue();
-						var kTarget = cond.getK();
-						var dTarget = cond.getD();
-						var stochList = cache.getStochRsi();
-
-						if (!stochList.isEmpty()) {
-							var latest = stochList.get(stochList.size() - 1);
-							double currentK = latest.getK();
-							double currentD = latest.getD();
-							entryLogManager
-								.log("📉 [StochRSI 검사] K: {}, D: {}, 기준: {}, 연산자: {}", currentK, currentD, value,
-										cond.getOperator());
-
-							if (cond.getOperator() == Operator.이상 && currentK < value) {
-								entryLogManager.log("❌ K값 조건 실패: {} < {}", currentK, value);
-								isPass = false;
-							} else if (cond.getOperator() == Operator.이하 && currentK > value) {
-								entryLogManager.log("❌ K값 조건 실패: {} > {}", currentK, value);
-								isPass = false;
-							} else {
-								entryLogManager.log("✅ K값 조건 통과");
-							}
-
-							if (kTarget != null && dTarget != null) {
-								if (currentK > currentD && currentK - currentD >= 0.5) {
-									entryLogManager.log("✅ 교차 조건 통과 (%K > %D)");
-								} else {
-									entryLogManager
-										.log("❌ 교차 조건 실패 (%K={}, %D={}, 차이={})", currentK, currentD,
-												currentK - currentD);
-									isPass = false;
-								}
-							}
-						} else {
-							entryLogManager.log("⚠️ StochRSI 리스트 비어 있음");
-							isPass = false;
-						}
-					}
-
-					case VWBB -> {
-						var basis = cache.getVwbb().getBasis();
-						var upper = cache.getVwbb().getUpper();
-						var lower = cache.getVwbb().getLower();
-						double currentPrice = cache.getCurrentPrice();
-
-						if (!basis.isEmpty()) {
-							int size = basis.size();
-							double upperBand = upper.get(size - 1).getValue();
-							double lowerBand = lower.get(size - 1).getValue();
-							double basisVal = basis.get(size - 1).getValue();
-							long lastCandleTime = cache.getCandles().get(cache.getCandles().size() - 1).getTime();
-
-							entryLogManager
-								.log("📊 [VWBB 검사] 현재가: {}, 상단: {}, 기준선: {}, 하단: {}, 캔들 수: {}, 마지막 캔들 UTC: {}",
-										currentPrice, upperBand, basisVal, lowerBand, cache.getCandles().size(),
-										lastCandleTime);
-
-							if (cond.getOperator() == Operator.상단_돌파) {
-								if (currentPrice > upperBand) {
-									entryLogManager.log("✅ 상단 돌파 조건 통과 ({} > {})", currentPrice, upperBand);
-								} else {
-									entryLogManager.log("❌ 상단 돌파 조건 실패 ({} <= {})", currentPrice, upperBand);
-									isPass = false;
-								}
-							}
-
-							if (cond.getOperator() == Operator.하단_돌파) {
-								if (currentPrice < lowerBand) {
-									entryLogManager.log("✅ 하단 돌파 조건 통과 ({} < {})", currentPrice, lowerBand);
-								} else {
-									entryLogManager.log("❌ 하단 돌파 조건 실패 ({} >= {})", currentPrice, lowerBand);
-									isPass = false;
-								}
-							}
-						} else {
-							entryLogManager.log("⚠️ VWBB 기준선 없음");
-							isPass = false;
-						}
-					}
-					}
-
-					if (!isPass) {
-						entryLogManager.log("❌ 조건 미충족 → 다음 포지션으로");
-						break;
-					}
+			for (var cond : position.getConditions()) {
+				String key = "BTCUSDT_" + cond.getTimeframe().getLabel();
+				IndicatorCache cache = IndicatorMemoryStore.get(key);
+				if (cache == null) {
+					entryLogManager.log("⚠️ 지표 캐시 없음: {}", key);
+					isPass = false;
+					break;
 				}
 
-				if (isPass) {
-					entryLogManager.log("🚀 진입 조건 만족 → 매매 실행 예정: {}", position.getTitle());
+				EntryConditionEvaluator evaluator = EntryEvaluatorRegistry.get(cond.getType());
+				if (evaluator == null) {
+					entryLogManager.log("⚠️ 조건 평가기 없음: {}", cond.getType());
+					isPass = false;
+					break;
 				}
 
-			} catch (Exception e) {
-				log.error("🚨 포지션 처리 중 오류: " + position.getId(), e);
+				boolean passed = evaluator.evaluate(cond, cache, entryLogManager);
+				if (!passed) {
+					entryLogManager.log("❌ 조건 미충족 → 다음 포지션으로");
+					isPass = false;
+					break;
+				}
+			}
+
+			if (isPass) {
+				entryLogManager.log("🚀 진입 조건 만족 → 매매 실행 예정: {}", position.getTitle());
+
+				var apiKey = apiKeyService.getValidatedKey(position.getUser(), position.getExchange());
+				ExchangeService exchangeService = exchangeRouter.getService(position.getExchange());
+				String symbol = "BTCUSDT";
+				Direction direction = position.getDirection();
+
+				var cache = IndicatorMemoryStore.get("BTCUSDT_1m");
+				if (cache == null || cache.getCandles().isEmpty()) {
+					entryLogManager.log("⚠️ BTCUSDT_1m 캔들 없음 → 포지션 스킵");
+					continue;
+				}
+				double observedPrice = cache.getCandles().get(cache.getCandles().size() - 1).getClose();
+
+				double quantity;
+				if (positionOpen.getAmountType() == AmountType.FIXED) {
+					quantity = positionOpen.getAmount();
+				} else {
+					List<BalanceDto> balances = exchangeService.fetchBalances(apiKey);
+					double availableUSDT = balances
+						.stream()
+						.filter(b -> b.getAsset().equals("USDT"))
+						.findFirst()
+						.map(BalanceDto::getAvailable)
+						.orElse(0.0);
+					double notional = availableUSDT * (positionOpen.getAmount() / 100.0);
+					quantity = notional / observedPrice;
+				}
+
+				double slPercent = positionOpen.getStopLoss();
+				Double tpPercent = positionOpen.getTakeProfit();
+				Double slPrice = (slPercent > 0) ? calcStopLossPrice(observedPrice, slPercent / 100.0, direction)
+						: null;
+				Double tpPrice = (tpPercent != null && tpPercent > 0)
+						? calcTakeProfitPrice(observedPrice, tpPercent / 100.0, direction)
+						: null;
+
+				long start = System.currentTimeMillis();
+
+				OrderResult result;
+				if (positionOpen.getStatus() == PositionOpenStatus.RUNNING) {
+					result = exchangeService.placeMarketOrder(apiKey, symbol, quantity, direction, slPrice, tpPrice);
+				} else {
+					result = exchangeService.createSimulatedOrder(symbol, quantity, observedPrice);
+				}
+
+				long end = System.currentTimeMillis();
+				boolean slRegistered = false;
+				boolean tpRegistered = false;
+
+				if (slPercent > 0) {
+					slPrice = calcStopLossPrice(result.getPrice(), slPercent / 100.0, direction);
+					slRegistered = exchangeService.placeStopLossOrder(apiKey, symbol, quantity, slPrice, direction);
+					entryLogManager.log(slRegistered ? "✅ SL 등록 성공" : "❌ SL 등록 실패");
+				}
+
+				if (tpPercent != null && tpPercent > 0) {
+					tpPrice = calcTakeProfitPrice(result.getPrice(), tpPercent / 100.0, direction);
+					tpRegistered = exchangeService.placeTakeProfitOrder(apiKey, symbol, quantity, tpPrice, direction);
+					entryLogManager.log(tpRegistered ? "✅ TP 등록 성공" : "❌ TP 등록 실패");
+				}
+
+				result.setTpSlSuccess(slRegistered && tpRegistered);
+				result.setExecutionTimeSeconds((end - start) / 1000.0);
+
+				entryLogManager.log("✅ 시장가 주문 체결 완료. 주문ID: {}", result.getOrderId());
+				entryLogManager.log("💰 체결 가격: {} (예상가: {})", result.getPrice(), observedPrice);
+				entryLogManager.log("⏱️ 주문 실행 소요 시간: {}초", result.getExecutionTimeSeconds());
+
+				executedOrderService
+					.saveExecutedOrderWithIndicators(result, positionOpen, position.getExchange().name(), symbol,
+							observedPrice);
+				tradeLogService.saveTradeLogWithConditions(result, position, positionOpen);
+				positionOpenRepository.save(positionOpen);
 			}
 		}
 	}

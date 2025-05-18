@@ -44,6 +44,7 @@ export interface PositionOpenDto {
   amount: number;
   stopLoss: number;
   takeProfit?: number;
+  leverage: number; // ✅ 추가됨
 }
 
 export interface Position {
@@ -62,6 +63,7 @@ export interface PositionOpenPayload {
   amountType: AmountType;
   stopLoss: number;
   takeProfit?: number;
+  leverage: number; // ✅ 추가됨
   status: PositionOpenStatus;
 }
 

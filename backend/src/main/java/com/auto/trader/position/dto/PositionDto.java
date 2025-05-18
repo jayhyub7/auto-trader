@@ -22,43 +22,44 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class PositionDto {
-    private Long id;
-    private String title;
-    private Exchange exchange;
-    private Direction direction;
-    private boolean enabled;
-    private List<IndicatorConditionDto> conditions;
-    private Long userId;
-    private PositionOpenDto open;
+	private Long id;
+	private String title;
+	private Exchange exchange;
+	private Direction direction;
+	private boolean enabled;
+	private List<IndicatorConditionDto> conditions;
+	private Long userId;
+	private PositionOpenDto open;
 
-    @Getter
-    @Setter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class IndicatorConditionDto {
-        private Long id;
-        private IndicatorType type;
-        private Double value;
-        private Double k;
-        private Double d;
-        private Operator operator;
-        private Timeframe timeframe;        
-        private ConditionPhase conditionPhase; 
-        private boolean enabled; 
-    }
+	@Getter
+	@Setter
+	@NoArgsConstructor
+	@AllArgsConstructor
+	@Builder
+	public static class IndicatorConditionDto {
+		private Long id;
+		private IndicatorType type;
+		private Double value;
+		private Double k;
+		private Double d;
+		private Operator operator;
+		private Timeframe timeframe;
+		private ConditionPhase conditionPhase;
+		private boolean enabled;
+	}
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class PositionOpenDto {
-        private Long id;
-        private Long positionId;          // ✅ positionId 추가
-        private String status;            // e.g. "IDLE"
-        private String amountType;        // e.g. "fixed", "percent"
-        private double amount;
-        private double stopLoss;
-        private Double takeProfit;
-    }
+	@Data
+	@Builder
+	@NoArgsConstructor
+	@AllArgsConstructor
+	public static class PositionOpenDto {
+		private Long id;
+		private Long positionId; // ✅ positionId 추가
+		private String status; // e.g. "IDLE"
+		private int leverage;
+		private String amountType; // e.g. "fixed", "percent"
+		private double amount;
+		private double stopLoss;
+		private Double takeProfit;
+	}
 }

@@ -1,6 +1,8 @@
 package com.auto.trader.config.entity;
 
 import com.auto.trader.domain.BaseEntity;
+
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -22,15 +24,16 @@ import lombok.Setter;
 @Builder
 public class ExceptionLog extends BaseEntity {
 
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-  private String exceptionType;
-  private String message;
-  private String uri;
-  private String httpMethod;
+	private String exceptionType;
+	@Column(columnDefinition = "TEXT")
+	private String message;
+	private String uri;
+	private String httpMethod;
 
-  @Lob
-  private String stackTrace;
+	@Lob
+	private String stackTrace;
 }

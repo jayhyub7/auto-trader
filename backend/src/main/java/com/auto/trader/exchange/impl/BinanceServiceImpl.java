@@ -1,14 +1,15 @@
 package com.auto.trader.exchange.impl;
 
-
 import java.util.List;
 import java.util.Map;
+
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+
 import com.auto.trader.balance.dto.BalanceDto;
 import com.auto.trader.domain.ApiKey;
 import com.auto.trader.domain.Exchange;
@@ -17,203 +18,225 @@ import com.auto.trader.exchange.ExchangeService;
 import com.auto.trader.exchange.dto.OrderResult;
 import com.auto.trader.exchange.dto.SignedRequest;
 import com.auto.trader.position.enums.Direction;
+
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
 public class BinanceServiceImpl extends AbstractExchangeService implements ExchangeService {
 
-  private static final String BASE_URL = "https://api.binance.com";
-  private static final String ACCOUNT_PATH = "/api/v3/account";
+	private static final String BASE_URL = "https://api.binance.com";
+	private static final String ACCOUNT_PATH = "/api/v3/account";
 
-  @Override
-  public boolean supports(Exchange exchange) {
-    return exchange == Exchange.BINANCE;
-  }
+	@Override
+	public boolean supports(Exchange exchange) {
+		return exchange == Exchange.BINANCE;
+	}
 
-  @Override
-  public List<BalanceDto> fetchBalances(ApiKey key) {
-    try {
-      SignedRequest signed = buildSignedRequest(key, null, null, HttpMethod.GET);
-      String url = BASE_URL + ACCOUNT_PATH + "?" + signed.getQueryString();
-      Map<String, Object> response = getWithHeaders(url, signed.getHeaders()).getBody();
-      List<Map<String, Object>> rawBalances = (List<Map<String, Object>>) response.get("balances");
-      return parseBalances(rawBalances);
-    } catch (Exception e) {
-      return List.of();
-    }
-  }
+	@Override
+	public List<BalanceDto> fetchBalances(ApiKey key) {
+		try {
+			SignedRequest signed = buildSignedRequest(key, null, null, HttpMethod.GET);
+			String url = BASE_URL + ACCOUNT_PATH + "?" + signed.getQueryString();
+			Map<String, Object> response = getWithHeaders(url, signed.getHeaders()).getBody();
+			List<Map<String, Object>> rawBalances = (List<Map<String, Object>>) response.get("balances");
+			return parseBalances(rawBalances);
+		} catch (Exception e) {
+			return List.of();
+		}
+	}
 
-  @Override
-  public boolean validate(ApiKey key) {
-    try {
-      SignedRequest signed = buildSignedRequest(key, null, null, HttpMethod.GET);
-      String url = BASE_URL + ACCOUNT_PATH + "?" + signed.getQueryString();
-      getWithHeaders(url, signed.getHeaders());
-      return true;
-    } catch (Exception e) {
-      return false;
-    }
-  }
+	public void enableHedgeMode(ApiKey key) {
+		try {
+			String path = "/fapi/v1/positionSide/dual";
+			String url = "https://fapi.binance.com" + path;
 
-  protected List<BalanceDto> parseBalances(List<Map<String, Object>> rawBalances) {
-    return rawBalances.stream().map(b -> {
-      String asset = (String) b.get("asset");
-      double available = Double.parseDouble(b.get("free").toString());
-      double locked = Double.parseDouble(b.get("locked").toString());
-      return toBalanceDto(asset, available, locked, Exchange.BINANCE);
-    }).filter(dto -> dto.getTotal() > 0).toList();
-  }
+			long timestamp = fetchBinanceServerTime();
+			String body = "dualSidePosition=true&timestamp=" + timestamp + "&recvWindow=10000";
+			String signature = hmacSha256(body, key.getSecretKey());
+			String fullQuery = body + "&signature=" + signature;
 
-  @Override
-  public SignedRequest buildSignedRequest(ApiKey apiKey, String pathOrQuery, String payload,
-      HttpMethod method) {
-    long timestamp = fetchBinanceServerTime();
-    String recvWindow = "10000";
+			HttpHeaders headers = new HttpHeaders();
+			headers.set("X-MBX-APIKEY", key.getApiKey());
+			headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+			headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-    String queryString;
-    if (method == HttpMethod.GET) {
-      // payload는 query string
-      queryString = (payload == null || payload.isEmpty())
-          ? "recvWindow=" + recvWindow + "&timestamp=" + timestamp
-          : payload + "&recvWindow=" + recvWindow + "&timestamp=" + timestamp;
-    } else {
-      // POST는 payload 자체를 서명 대상 문자열로 사용
-      queryString = "recvWindow=" + recvWindow + "&timestamp=" + timestamp;
-    }
+			HttpEntity<String> entity = new HttpEntity<>("", headers);
 
-    String signature = hmacSha256(queryString, apiKey.getSecretKey());
-    String signedQuery = queryString + "&signature=" + signature;
+			ResponseEntity<Map> response = restTemplate
+				.exchange(url + "?" + fullQuery, HttpMethod.POST, entity, Map.class);
 
-    HttpHeaders headers = new HttpHeaders();
-    headers.set("X-MBX-APIKEY", apiKey.getApiKey());
-    headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+			Map<String, Object> bodyMap = response.getBody();
+			if (bodyMap != null && "-4059".equals(String.valueOf(bodyMap.get("code")))) {
+				log.info("☑ Binance Hedge Mode 이미 설정되어 있음 (code -4059)");
+			} else {
+				log.info("✅ Binance Hedge Mode 활성화 응답: {}", bodyMap);
+			}
 
-    return new SignedRequest(headers, signedQuery);
-  }
+		} catch (Exception e) {
+			log.error("❌ Binance Hedge Mode 설정 실패", e);
+		}
+	}
 
+	@Override
+	public boolean validate(ApiKey key) {
+		try {
+			SignedRequest signed = buildSignedRequest(key, null, null, HttpMethod.GET);
+			String url = BASE_URL + ACCOUNT_PATH + "?" + signed.getQueryString();
+			getWithHeaders(url, signed.getHeaders());
+			return true;
+		} catch (Exception e) {
+			return false;
+		}
+	}
 
-  private long fetchBinanceServerTime() {
-    String url = BASE_URL + "/api/v3/time";
-    Map<String, Object> response = getWithHeaders(url, new HttpHeaders()).getBody();
-    if (response == null || !response.containsKey("serverTime")) {
-      throw new IllegalStateException("Binance 서버 시간 응답 오류");
-    }
-    return Long.parseLong(response.get("serverTime").toString());
-  }
+	protected List<BalanceDto> parseBalances(List<Map<String, Object>> rawBalances) {
+		return rawBalances.stream().map(b -> {
+			String asset = (String) b.get("asset");
+			double available = Double.parseDouble(b.get("free").toString());
+			double locked = Double.parseDouble(b.get("locked").toString());
+			return toBalanceDto(asset, available, locked, Exchange.BINANCE);
+		}).filter(dto -> dto.getTotal() > 0).toList();
+	}
 
-  @Override
-  public OrderResult placeMarketOrder(ApiKey key, String symbol, double quantity,
-      Direction direction, Double stopLossPrice, Double takeProfitPrice) {
-    try {
-      // 1. 시장가 본 주문
-      OrderResult result = sendMarketOrder(key, symbol, quantity, direction);
-      if (!result.isSuccess())
-        return result;
+	@Override
+	public SignedRequest buildSignedRequest(ApiKey apiKey, String pathOrQuery, String payload, HttpMethod method) {
+		long timestamp = fetchBinanceServerTime();
+		String recvWindow = "10000";
 
-      // 2. SL 등록
-      if (stopLossPrice != null) {
-        placeConditionalOrder(key, symbol, quantity, direction, stopLossPrice, "STOP_MARKET");
-      }
+		String queryString;
+		if (method == HttpMethod.GET) {
+			queryString = (payload == null || payload.isEmpty())
+					? "recvWindow=" + recvWindow + "&timestamp=" + timestamp
+					: payload + "&recvWindow=" + recvWindow + "&timestamp=" + timestamp;
+		} else {
+			queryString = "recvWindow=" + recvWindow + "&timestamp=" + timestamp;
+		}
 
-      // 3. TP 등록
-      if (takeProfitPrice != null) {
-        placeConditionalOrder(key, symbol, quantity, direction, takeProfitPrice,
-            "TAKE_PROFIT_MARKET");
-      }
+		String signature = hmacSha256(queryString, apiKey.getSecretKey());
+		String signedQuery = queryString + "&signature=" + signature;
 
-      return result;
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("X-MBX-APIKEY", apiKey.getApiKey());
+		headers.setAccept(List.of(MediaType.APPLICATION_JSON));
 
-    } catch (Exception e) {
-      log.error("❌ Binance 시장가 주문 실패", e);
-      return new OrderResult(false, null, symbol, 0, 0, e.getMessage());
-    }
-  }
+		return new SignedRequest(headers, signedQuery);
+	}
 
-  private OrderResult sendMarketOrder(ApiKey key, String symbol, double quantity,
-      Direction direction) {
-    String path = "/api/v3/order";
-    String url = BASE_URL + path;
+	private long fetchBinanceServerTime() {
+		String url = BASE_URL + "/api/v3/time";
+		Map<String, Object> response = getWithHeaders(url, new HttpHeaders()).getBody();
+		if (response == null || !response.containsKey("serverTime")) {
+			throw new IllegalStateException("Binance 서버 시간 응답 오류");
+		}
+		return Long.parseLong(response.get("serverTime").toString());
+	}
 
-    String side = (direction == Direction.LONG) ? "BUY" : "SELL";
-    long timestamp = fetchBinanceServerTime();
-    String recvWindow = "10000";
+	@Override
+	public OrderResult placeMarketOrder(ApiKey key, String symbol, double quantity, Direction direction,
+			Double stopLossPrice, Double takeProfitPrice) {
+		try {
+			OrderResult result = sendMarketOrder(key, symbol, quantity, direction);
+			if (!result.isSuccess())
+				return result;
 
-    String body = "symbol=" + symbol + "&side=" + side + "&type=MARKET" + "&quantity=" + quantity
-        + "&recvWindow=" + recvWindow + "&timestamp=" + timestamp;
+			if (stopLossPrice != null) {
+				placeConditionalOrder(key, symbol, quantity, direction, stopLossPrice, "STOP_MARKET");
+			}
 
-    String signature = hmacSha256(body, key.getSecretKey());
-    String fullQuery = body + "&signature=" + signature;
+			if (takeProfitPrice != null) {
+				placeConditionalOrder(key, symbol, quantity, direction, takeProfitPrice, "TAKE_PROFIT_MARKET");
+			}
 
-    HttpHeaders headers = new HttpHeaders();
-    headers.set("X-MBX-APIKEY", key.getApiKey());
-    headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+			return result;
 
-    try {
-      HttpEntity<String> entity = new HttpEntity<>("", headers);
-      ResponseEntity<Map<String, Object>> responseEntity =
-          restTemplate.exchange(url + "?" + fullQuery, HttpMethod.POST, entity,
-              (Class<Map<String, Object>>) (Class<?>) Map.class);
+		} catch (Exception e) {
+			log.error("❌ Binance 시장가 주문 실패", e);
+			return new OrderResult(false, null, symbol, 0, 0, e.getMessage());
+		}
+	}
 
-      Map<String, Object> res = responseEntity.getBody();
-      return new OrderResult(true, String.valueOf(res.get("orderId")), symbol,
-          Double.parseDouble(res.get("executedQty").toString()),
-          Double.parseDouble(res.getOrDefault("price", "0").toString()), res.toString());
-    } catch (Exception e) {
-      log.error("❌ Binance 시장가 주문 실패", e);
-      return new OrderResult(false, null, symbol, 0, 0, e.getMessage());
-    }
-  }
+	private OrderResult sendMarketOrder(ApiKey key, String symbol, double quantity, Direction direction) {
+		String path = "/api/v3/order";
+		String url = BASE_URL + path;
 
-  private void placeConditionalOrder(ApiKey key, String symbol, double quantity,
-      Direction direction, double triggerPrice, String type // "STOP_MARKET" or "TAKE_PROFIT_MARKET"
-  ) {
-    String path = "/api/v3/order";
-    String url = BASE_URL + path;
+		String side = (direction == Direction.LONG) ? "BUY" : "SELL";
+		String positionSide = (direction == Direction.LONG) ? "LONG" : "SHORT";
+		long timestamp = fetchBinanceServerTime();
+		String recvWindow = "10000";
 
-    String side = (direction == Direction.LONG) ? "SELL" : "BUY";
-    long timestamp = fetchBinanceServerTime();
-    String recvWindow = "10000";
+		String body = "symbol=" + symbol + "&side=" + side + "&positionSide=" + positionSide + "&type=MARKET"
+				+ "&quantity=" + quantity + "&recvWindow=" + recvWindow + "&timestamp=" + timestamp;
 
-    String body = "symbol=" + symbol + "&side=" + side + "&type=" + type + "&quantity=" + quantity
-        + "&stopPrice=" + triggerPrice + "&timeInForce=GTC" + "&reduceOnly=true" + "&recvWindow="
-        + recvWindow + "&timestamp=" + timestamp;
+		String signature = hmacSha256(body, key.getSecretKey());
+		String fullQuery = body + "&signature=" + signature;
 
-    String signature = hmacSha256(body, key.getSecretKey());
-    String fullQuery = body + "&signature=" + signature;
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("X-MBX-APIKEY", key.getApiKey());
+		headers.setAccept(List.of(MediaType.APPLICATION_JSON));
 
-    HttpHeaders headers = new HttpHeaders();
-    headers.set("X-MBX-APIKEY", key.getApiKey());
-    headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+		try {
+			HttpEntity<String> entity = new HttpEntity<>("", headers);
+			ResponseEntity<Map<String, Object>> responseEntity = restTemplate
+				.exchange(url + "?" + fullQuery, HttpMethod.POST, entity,
+						(Class<Map<String, Object>>) (Class<?>) Map.class);
 
-    HttpEntity<String> entity = new HttpEntity<>("", headers);
-    restTemplate.exchange(url + "?" + fullQuery, HttpMethod.POST, entity, Map.class);
-  }
+			Map<String, Object> res = responseEntity.getBody();
+			return new OrderResult(true, String.valueOf(res.get("orderId")), symbol,
+					Double.parseDouble(res.get("executedQty").toString()),
+					Double.parseDouble(res.getOrDefault("price", "0").toString()), res.toString());
+		} catch (Exception e) {
+			log.error("❌ Binance 시장가 주문 실패", e);
+			return new OrderResult(false, null, symbol, 0, 0, e.getMessage());
+		}
+	}
 
-  @Override
-  public boolean placeStopLossOrder(ApiKey key, String symbol, double quantity,
-      double stopLossPrice, Direction direction) {
-    try {
-      placeConditionalOrder(key, symbol, quantity, direction, stopLossPrice, "STOP_MARKET");
-      return true;
-    } catch (Exception e) {
-      log.error("❌ Binance Stop Loss 주문 실패", e);
-      return false;
-    }
-  }
+	private void placeConditionalOrder(ApiKey key, String symbol, double quantity, Direction direction,
+			double triggerPrice, String type) {
+		String path = "/api/v3/order";
+		String url = BASE_URL + path;
 
-  @Override
-  public boolean placeTakeProfitOrder(ApiKey key, String symbol, double quantity,
-      double takeProfitPrice, Direction direction) {
-    try {
-      placeConditionalOrder(key, symbol, quantity, direction, takeProfitPrice,
-          "TAKE_PROFIT_MARKET");
-      return true;
-    } catch (Exception e) {
-      log.error("❌ Binance Take Profit 주문 실패", e);
-      return false;
-    }
-  }
+		String side = (direction == Direction.LONG) ? "SELL" : "BUY";
+		String positionSide = (direction == Direction.LONG) ? "LONG" : "SHORT";
+		long timestamp = fetchBinanceServerTime();
+		String recvWindow = "10000";
 
+		String body = "symbol=" + symbol + "&side=" + side + "&positionSide=" + positionSide + "&type=" + type
+				+ "&quantity=" + quantity + "&stopPrice=" + triggerPrice + "&timeInForce=GTC" + "&reduceOnly=true"
+				+ "&recvWindow=" + recvWindow + "&timestamp=" + timestamp;
 
+		String signature = hmacSha256(body, key.getSecretKey());
+		String fullQuery = body + "&signature=" + signature;
+
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("X-MBX-APIKEY", key.getApiKey());
+		headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+
+		HttpEntity<String> entity = new HttpEntity<>("", headers);
+		restTemplate.exchange(url + "?" + fullQuery, HttpMethod.POST, entity, Map.class);
+	}
+
+	@Override
+	public boolean placeStopLossOrder(ApiKey key, String symbol, double quantity, double stopLossPrice,
+			Direction direction) {
+		try {
+			placeConditionalOrder(key, symbol, quantity, direction, stopLossPrice, "STOP_MARKET");
+			return true;
+		} catch (Exception e) {
+			log.error("❌ Binance Stop Loss 주문 실패", e);
+			return false;
+		}
+	}
+
+	@Override
+	public boolean placeTakeProfitOrder(ApiKey key, String symbol, double quantity, double takeProfitPrice,
+			Direction direction) {
+		try {
+			placeConditionalOrder(key, symbol, quantity, direction, takeProfitPrice, "TAKE_PROFIT_MARKET");
+			return true;
+		} catch (Exception e) {
+			log.error("❌ Binance Take Profit 주문 실패", e);
+			return false;
+		}
+	}
 }

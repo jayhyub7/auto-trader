@@ -44,10 +44,10 @@ public class PositionOpenService {
 					.amount(open.getAmount())
 					.stopLoss(open.getStopLoss())
 					.takeProfit(open.getTakeProfit())
+					.leverage(open.getLeverage())
 					.build();
 			}
 
-			// ✅ 여기서 return 필요!
 			return PositionDto
 				.builder()
 				.id(position.getId())
@@ -79,11 +79,11 @@ public class PositionOpenService {
 			.stopLoss(dto.getStopLoss())
 			.takeProfit(dto.getTakeProfit())
 			.status(PositionOpenStatus.valueOf(dto.getStatus().toUpperCase()))
+			.leverage(dto.getLeverage())
 			.build();
 
 		PositionOpen saved = positionOpenRepository.save(open);
 
-		// ✅ 저장된 ID 포함한 dto 리턴
 		dto.setId(saved.getId());
 		return dto;
 	}
@@ -101,11 +101,11 @@ public class PositionOpenService {
 		open.setStopLoss(dto.getStopLoss());
 		open.setTakeProfit(dto.getTakeProfit());
 		open.setStatus(PositionOpenStatus.valueOf(dto.getStatus().toUpperCase()));
+		open.setLeverage(dto.getLeverage());
 
 		positionOpenRepository.save(open);
 	}
 
-	// 🔄 IndicatorCondition → DTO 변환 메서드
 	private PositionDto.IndicatorConditionDto toConditionDto(IndicatorCondition cond) {
 		return PositionDto.IndicatorConditionDto
 			.builder()
@@ -126,7 +126,6 @@ public class PositionOpenService {
 		List<Position> positions = positionRepository.findEnabledPositionsWithOpen();
 
 		return positions.stream().map(p -> {
-			// 실행 중 or 시뮬레이션 중 Open만 필터링
 			List<PositionOpen> filteredOpens = p
 				.getPositionOpenList()
 				.stream()
@@ -134,7 +133,6 @@ public class PositionOpenService {
 						|| o.getStatus() == PositionOpenStatus.SIMULATING)
 				.toList();
 
-			// ENABLED 조건만 필터링 (ENTRY/EXIT 구분은 나중에 판별)
 			List<IndicatorCondition> filteredConditions = p
 				.getConditions()
 				.stream()
@@ -154,10 +152,7 @@ public class PositionOpenService {
 				.build();
 		})
 			.filter(p -> !p.getPositionOpenList().isEmpty())
-			.filter(p -> p.getConditions().stream().anyMatch(c -> c.getConditionPhase() == ConditionPhase.ENTRY)) // ENTRY
-																													// 조건
-																													// 존재하는
-																													// 것만
+			.filter(p -> p.getConditions().stream().anyMatch(c -> c.getConditionPhase() == ConditionPhase.ENTRY))
 			.toList();
 	}
 
@@ -166,7 +161,6 @@ public class PositionOpenService {
 		List<Position> positions = positionRepository.findEnabledPositionsWithOpen();
 
 		return positions.stream().map(p -> {
-			// 실행 중 + 미체결된 PositionOpen만 필터링
 			List<PositionOpen> filteredOpens = p
 				.getPositionOpenList()
 				.stream()
@@ -174,7 +168,6 @@ public class PositionOpenService {
 						|| o.getStatus() == PositionOpenStatus.SIMULATING))
 				.toList();
 
-			// EXIT 조건만 필터링 (원본은 건드리지 않음)
 			List<IndicatorCondition> filteredConditions = p
 				.getConditions()
 				.stream()
@@ -182,7 +175,6 @@ public class PositionOpenService {
 				.filter(c -> c.getConditionPhase() == ConditionPhase.EXIT)
 				.toList();
 
-			// 새 Position 복사본 생성 (원본 엔티티 아님)
 			return Position
 				.builder()
 				.id(p.getId())
@@ -194,9 +186,7 @@ public class PositionOpenService {
 				.positionOpenList(filteredOpens)
 				.conditions(filteredConditions)
 				.build();
-		})
-			.filter(p -> !p.getPositionOpenList().isEmpty()) // Open이 없는 포지션은 제외
-			.toList();
+		}).filter(p -> !p.getPositionOpenList().isEmpty()).toList();
 	}
 
 	@Transactional
@@ -213,5 +203,4 @@ public class PositionOpenService {
 	public Optional<PositionOpen> findById(Long id) {
 		return positionOpenRepository.findById(id);
 	}
-
 }
