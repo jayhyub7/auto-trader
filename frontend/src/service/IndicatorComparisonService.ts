@@ -90,9 +90,14 @@ export const compareBackendIndicators = async (
 ): Promise<AllComparisonResponse> => {
   const candles = await fetchLatestCandles(symbol, interval);
 
-  const frontRsi = calculateRSI(candles);
-  const frontStoch = calculateStochRSI(candles);
-  const frontVwbb = calculateVWBB(candles);
+  const frontRsi = calculateRSI(candles).slice(-30);
+  const frontStoch = calculateStochRSI(candles).slice(-30);
+  const vwbbFull = calculateVWBB(candles);
+  const frontVwbb = {
+    upper: vwbbFull.upper.slice(-30),
+    basis: vwbbFull.basis.slice(-30),
+    lower: vwbbFull.lower.slice(-30),
+  };
 
   const frontend = mergeIndicators({
     rsi: frontRsi,

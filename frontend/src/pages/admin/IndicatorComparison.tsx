@@ -23,6 +23,25 @@ type Interval = keyof typeof INTERVAL_MS;
 
 const INDICATORS = ["rsi", "stochrsi", "vwbb"] as const;
 
+const formatTimestamp = (ts: number) => {
+  const date = new Date(ts * 1000);
+  return date.toLocaleString("ko-KR", {
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+};
+
+const getDiffColor = (diff: number) => {
+  if (diff < 1) return "text-green-600";
+  if (diff < 10) return "text-yellow-500";
+  return "text-red-500";
+};
+
 const IndicatorComparison = () => {
   const [result, setResult] = useState<AllComparisonResponse["result"] | null>(
     null
@@ -36,8 +55,6 @@ const IndicatorComparison = () => {
 
   const handleCompareFrontend = async () => {
     const res = await compareFrontendIndicators(SYMBOL, interval);
-    console.log("res : ", res);
-
     const frontend = res.result.frontend;
     const backend = res.result.backend;
     const merged: AllComparisonResponse["result"] = {};
@@ -46,10 +63,18 @@ const IndicatorComparison = () => {
       const front = (frontend?.[key] ?? []).slice(-30);
       const back = backend?.[key] ?? [];
       const len = Math.min(front.length, back.length);
-      const sorted = Array.from({ length: len }, (_, i) => ({
-        frontend: front[i],
-        backend: back[i],
-      })).sort((a, b) => b.frontend.time - a.frontend.time);
+      const sorted = Array.from({ length: len }, (_, i) => {
+        const f = front[i];
+        const b = back[i];
+        const diff: any = {};
+        Object.keys(f).forEach((k) => {
+          if (k !== "time" && b[k] != null && f[k] != null) {
+            diff[k + "diff"] = Math.abs(f[k] - b[k]);
+          }
+        });
+        return { frontend: f, backend: b, diff, timeDiffSec: b.time - f.time };
+      }).sort((a, b) => b.frontend.time - a.frontend.time);
+
       merged[key] = sorted;
     }
 
@@ -59,8 +84,6 @@ const IndicatorComparison = () => {
 
   const handleCompareBackend = async () => {
     const res = await compareBackendIndicators(SYMBOL, interval);
-    console.log("res : ", res);
-
     const frontend = res.result.frontend;
     const backend = res.result.backend;
     const merged: AllComparisonResponse["result"] = {};
@@ -69,11 +92,17 @@ const IndicatorComparison = () => {
       const front = frontend?.[key] ?? [];
       const back = backend?.[key] ?? [];
       const len = Math.min(front.length, back.length);
-
-      const sorted = Array.from({ length: len }, (_, i) => ({
-        frontend: front[i],
-        backend: back[i],
-      })).sort((a, b) => b.frontend.time - a.frontend.time);
+      const sorted = Array.from({ length: len }, (_, i) => {
+        const f = front[i];
+        const b = back[i];
+        const diff: any = {};
+        Object.keys(f).forEach((k) => {
+          if (k !== "time" && b[k] != null && f[k] != null) {
+            diff[k + "diff"] = Math.abs(f[k] - b[k]);
+          }
+        });
+        return { frontend: f, backend: b, diff, timeDiffSec: b.time - f.time };
+      }).sort((a, b) => b.frontend.time - a.frontend.time);
 
       merged[key] = sorted;
     }
@@ -83,18 +112,52 @@ const IndicatorComparison = () => {
   };
 
   const renderTripleRow = (item: any, idx: number) => {
+    const keys = Object.keys(item.frontend ?? {});
     return (
       <div
         key={idx}
-        className="grid grid-cols-2 gap-2 border rounded bg-white text-xs font-mono p-4"
+        className="grid grid-cols-3 gap-2 border rounded bg-white text-xs font-mono p-4"
       >
+        {/* 프론트 */}
         <div>
           <div className="font-bold text-gray-700">프론트</div>
-          <pre>{JSON.stringify(item.frontend ?? item[0], null, 2)}</pre>
+          <div>{formatTimestamp(item.frontend?.time)}</div>
+          <div className="text-gray-400">
+            (TIMESTAMP: {item.frontend?.time})
+          </div>
+          {keys.map((k) => (
+            <div key={k} className="text-green-600">
+              {k}: {item.frontend?.[k]?.toFixed?.(4) ?? "--"}
+            </div>
+          ))}
         </div>
+
+        {/* 지표비교 */}
+        <div>
+          <div className="font-bold text-gray-700">지표비교</div>
+          <div>
+            시간차: 00:00:{String(item.timeDiffSec ?? 0).padStart(2, "0")}
+          </div>
+          <div className="text-gray-400">
+            TIMESTAMP: {item.backend?.time ?? "--"}
+          </div>
+          {Object.entries(item.diff ?? {}).map(([k, v]) => (
+            <div key={k} className={`${getDiffColor(v as number)} font-bold`}>
+              {k}: {(v as number).toFixed(4)}
+            </div>
+          ))}
+        </div>
+
+        {/* 백엔드 */}
         <div>
           <div className="font-bold text-gray-700">백엔드</div>
-          <pre>{JSON.stringify(item.backend ?? item[1], null, 2)}</pre>
+          <div>{formatTimestamp(item.backend?.time)}</div>
+          <div className="text-gray-400">(TIMESTAMP: {item.backend?.time})</div>
+          {keys.map((k) => (
+            <div key={k} className="text-purple-600">
+              {k}: {item.backend?.[k]?.toFixed?.(4) ?? "--"}
+            </div>
+          ))}
         </div>
       </div>
     );
