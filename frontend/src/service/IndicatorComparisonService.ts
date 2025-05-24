@@ -94,49 +94,29 @@ export const compareBackendIndicators = async (
   const frontStoch = calculateStochRSI(candles);
   const frontVwbb = calculateVWBB(candles);
 
-  const frontResult = mergeIndicators({
+  const frontend = mergeIndicators({
     rsi: frontRsi,
     stochrsi: frontStoch,
     vwbb: frontVwbb,
   });
 
-  const backendRes = await api.post("/indicator/fetch-cached-indicators", {
+  const backendRes = await api.post("/indicator/backend-indicator", {
     symbol,
     interval,
   });
 
-  const backend = backendRes.data;
-  const backendResult = mergeIndicators({
-    rsi: backend.rsi,
-    stochrsi: backend.stochrsi,
-    vwbb: backend.vwbb,
+  const backend = mergeIndicators({
+    rsi: backendRes.data.rsi,
+    stochrsi: backendRes.data.stochRSI,
+    vwbb: backendRes.data.vwbb,
   });
 
-  const result: AllComparisonResponse["result"] = {};
-
-  for (const key of ["rsi", "stochrsi", "vwbb"] as const) {
-    const frontMap = frontResult[key] || {};
-    const backMap = backendResult[key] || {};
-    const timeSet = new Set([
-      ...Object.keys(frontMap),
-      ...Object.keys(backMap),
-    ]);
-
-    result[key] = Array.from(timeSet)
-      .sort()
-      .map((t) => {
-        const time = Number(t);
-        const f = frontMap[time];
-        const b = backMap[time];
-        const row: any = { time };
-        if (f) row.frontend = f;
-        if (b) row.backend = b;
-        if (f && b) row.diff = computeDiff(f, b);
-        return row;
-      });
-  }
-
-  return { result };
+  return {
+    result: {
+      frontend,
+      backend,
+    },
+  };
 };
 
 function mergeIndicators(sources: {

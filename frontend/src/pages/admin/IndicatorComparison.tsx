@@ -59,7 +59,26 @@ const IndicatorComparison = () => {
 
   const handleCompareBackend = async () => {
     const res = await compareBackendIndicators(SYMBOL, interval);
-    setResult(res.result);
+    console.log("res : ", res);
+
+    const frontend = res.result.frontend;
+    const backend = res.result.backend;
+    const merged: AllComparisonResponse["result"] = {};
+
+    for (const key of INDICATORS) {
+      const front = frontend?.[key] ?? [];
+      const back = backend?.[key] ?? [];
+      const len = Math.min(front.length, back.length);
+
+      const sorted = Array.from({ length: len }, (_, i) => ({
+        frontend: front[i],
+        backend: back[i],
+      })).sort((a, b) => b.frontend.time - a.frontend.time);
+
+      merged[key] = sorted;
+    }
+
+    setResult(merged);
     setExecutionMeta({ type: "백엔드 계산", time: Date.now() });
   };
 
