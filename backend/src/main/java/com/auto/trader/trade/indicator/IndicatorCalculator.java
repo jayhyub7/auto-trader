@@ -4,6 +4,7 @@ package com.auto.trader.trade.indicator;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
@@ -28,7 +29,11 @@ public class IndicatorCalculator {
 
 			List<IndicatorUtil.IndicatorPoint> rsi = IndicatorUtil.calculateRSI(trimmed, 14);
 			List<IndicatorUtil.IndicatorPoint> ema = IndicatorUtil.calculateEMA(trimmed, 14);
-			List<IndicatorUtil.IndicatorPoint> sma = IndicatorUtil.calculateSMA(trimmed, 14);
+			List<IndicatorUtil.IndicatorPoint> closePoints = trimmed
+				.stream()
+				.map(c -> new IndicatorUtil.IndicatorPoint(c.getTime(), c.getClose()))
+				.collect(Collectors.toList());
+			List<IndicatorUtil.IndicatorPoint> sma = IndicatorUtil.calculateSMA(closePoints, 14);
 			List<IndicatorUtil.DualIndicatorPoint> stoch = IndicatorUtil.calculateStochRSI(trimmed, 14, 14, 3, 3);
 
 			IndicatorUtil.VWBB vwbb = IndicatorUtil.calculateVWBB(trimmed, 20, 2);

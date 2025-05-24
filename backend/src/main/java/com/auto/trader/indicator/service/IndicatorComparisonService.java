@@ -1,145 +1,166 @@
 package com.auto.trader.indicator.service;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
-import com.auto.trader.indicator.dto.AllComparisonRequestDto;
 import com.auto.trader.indicator.dto.AllComparisonResultDto;
 import com.auto.trader.trade.dto.CandleDto;
 import com.auto.trader.trade.indicator.IndicatorCache;
+import com.auto.trader.trade.indicator.IndicatorKeyMap;
 import com.auto.trader.trade.indicator.IndicatorMemoryStore;
 import com.auto.trader.trade.indicator.IndicatorUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class IndicatorComparisonService {
 
-	public AllComparisonResultDto compareAll(AllComparisonRequestDto request) {
-		String key = request.getSymbol() + "_" + request.getTimeframe();
-		IndicatorCache backend = IndicatorMemoryStore.get(key);
-		List<CandleDto> frontendCandles = request.getCandles();
+	private final ObjectMapper objectMapper;
 
-		Map<String, Object> result = new HashMap<>();
-
-		if (backend == null || backend.getRsi() == null) {
-			result.put("error", "백엔드 캐시에 지표 데이터가 없습니다.");
-			return AllComparisonResultDto.builder().result(result).build();
+	/**
+	 * ✅ 프론트 계산 결과와 백엔드 메모리 지표를 비교
+	 */
+	public AllComparisonResultDto compareWithFrontendOnly(String symbol, String interval,
+			List<CandleDto> frontendCandles) {
+		if (frontendCandles == null || frontendCandles.isEmpty()) {
+			log.warn("❌ [프론트 비교] 캔들이 비어 있음");
+			throw new IllegalArgumentException("프론트 캔들이 비어 있습니다");
 		}
 
-		// ✅ RSI 비교
-		List<IndicatorUtil.IndicatorPoint> frontendRsi = IndicatorUtil.calculateRSI(frontendCandles, 14);
-		List<IndicatorUtil.IndicatorPoint> backendRsi = backend.getRsi();
-		List<Map<String, Object>> rsiDiffList = new ArrayList<>();
-		for (int i = 0; i < Math.min(frontendRsi.size(), backendRsi.size()); i++) {
-			var f = frontendRsi.get(i);
-			var b = backendRsi.get(i);
-			if (f.getValue() == null || b.getValue() == null)
-				continue;
-			double diff = Math.abs(f.getValue() - b.getValue());
-			rsiDiffList
-				.add(Map.of("time", f.getTime(), "frontend", f.getValue(), "backend", b.getValue(), "diff", diff));
-		}
-		result.put("rsi", rsiDiffList);
+		Map<String, List<?>> frontMap = IndicatorUtil.calculateAllIndicators(frontendCandles);
 
-		// ✅ StochRSI 비교
-		List<IndicatorUtil.DualIndicatorPoint> frontendStoch = IndicatorUtil
-			.calculateStochRSI(frontendCandles, 14, 14, 3, 3);
-		List<IndicatorUtil.DualIndicatorPoint> backendStoch = backend.getStochRsi();
-		List<Map<String, Object>> stochDiffList = new ArrayList<>();
-		for (int i = 0; i < Math.min(frontendStoch.size(), backendStoch.size()); i++) {
-			var f = frontendStoch.get(i);
-			var b = backendStoch.get(i);
-			if (f.getK() == null || b.getK() == null || f.getD() == null || b.getD() == null)
-				continue;
-			double kdiff = Math.abs(f.getK() - b.getK());
-			double ddiff = Math.abs(f.getD() - b.getD());
-			stochDiffList
-				.add(Map
-					.of("time", f.getTime(), "frontend_k", f.getK(), "backend_k", b.getK(), "kdiff", kdiff,
-							"frontend_d", f.getD(), "backend_d", b.getD(), "ddiff", ddiff));
+		String key = symbol + "_" + interval;
+		IndicatorCache cache = IndicatorMemoryStore.get(key);
+		if (cache == null) {
+			log.warn("❌ [프론트 비교] IndicatorCache 없음: {}", key);
+			throw new IllegalStateException("IndicatorCache 없음: " + key);
 		}
-		result.put("stochRsi", stochDiffList);
 
-		// ✅ VWBB 비교
-		IndicatorUtil.VWBB frontendVwbb = IndicatorUtil.calculateVWBB(frontendCandles, 20, 2.0);
-		IndicatorUtil.VWBB backendVwbb = backend.getVwbb();
-		List<Map<String, Object>> upperList = new ArrayList<>();
-		List<Map<String, Object>> lowerList = new ArrayList<>();
-		List<Map<String, Object>> basisList = new ArrayList<>();
+		Map<String, List<?>> backMap = cache.toMap();
 
-		for (int i = 0; i < Math.min(frontendVwbb.getUpper().size(), backendVwbb.getUpper().size()); i++) {
-			var f = frontendVwbb.getUpper().get(i);
-			var b = backendVwbb.getUpper().get(i);
-			if (f.getValue() == null || b.getValue() == null)
-				continue;
-			upperList
-				.add(Map
-					.of("time", f.getTime(), "frontend", f.getValue(), "backend", b.getValue(), "diff",
-							Math.abs(f.getValue() - b.getValue())));
+		return compare(frontMap, backMap);
+	}
+
+	/**
+	 * ✅ 백엔드 메모리 기준 지표를 재계산하여 비교
+	 */
+	public AllComparisonResultDto compareWithBackendOnly(String symbol, String interval) {
+		String key = symbol + "_" + interval;
+		IndicatorCache cache = IndicatorMemoryStore.get(key);
+		if (cache == null) {
+			log.warn("❌ [백엔드 비교] IndicatorCache 없음: {}", key);
+			throw new IllegalStateException("IndicatorCache 없음: " + key);
 		}
-		for (int i = 0; i < Math.min(frontendVwbb.getLower().size(), backendVwbb.getLower().size()); i++) {
-			var f = frontendVwbb.getLower().get(i);
-			var b = backendVwbb.getLower().get(i);
-			if (f.getValue() == null || b.getValue() == null)
-				continue;
-			lowerList
-				.add(Map
-					.of("time", f.getTime(), "frontend", f.getValue(), "backend", b.getValue(), "diff",
-							Math.abs(f.getValue() - b.getValue())));
-		}
-		for (int i = 0; i < Math.min(frontendVwbb.getBasis().size(), backendVwbb.getBasis().size()); i++) {
-			var f = frontendVwbb.getBasis().get(i);
-			var b = backendVwbb.getBasis().get(i);
-			if (f.getValue() == null || b.getValue() == null)
-				continue;
-			basisList
-				.add(Map
-					.of("time", f.getTime(), "frontend", f.getValue(), "backend", b.getValue(), "diff",
-							Math.abs(f.getValue() - b.getValue())));
-		}
-		result.put("vwbb", Map.of("upper", upperList, "lower", lowerList, "basis", basisList));
 
-		List<CandleDto> backendCandles = backend.getCandles();
-		List<Map<String, Object>> candleDiffList = new ArrayList<>();
+		Map<String, List<?>> frontMap = cache.toMap(); // 기존 저장된 지표
+		Map<String, List<?>> backMap = IndicatorUtil.calculateAllIndicators(cache.getCandles()); // 지금 다시 계산
 
-		for (int i = 0; i < Math.min(frontendCandles.size(), backendCandles.size()); i++) {
-			var f = frontendCandles.get(i);
-			var b = backendCandles.get(i);
-			if (f == null || b == null)
+		return compare(frontMap, backMap);
+	}
+
+	private AllComparisonResultDto compare(Map<String, List<?>> frontMap, Map<String, List<?>> backMap) {
+		Map<String, List<Map<String, Object>>> result = new LinkedHashMap<>();
+
+		for (String indicator : frontMap.keySet()) {
+			List<?> frontList = frontMap.get(indicator);
+			List<?> backList = backMap.getOrDefault(indicator, Collections.emptyList());
+
+			List<String> keys = IndicatorKeyMap.getKeys(indicator);
+			if (keys.isEmpty())
 				continue;
 
-			Map<String, Object> entry = new HashMap<>();
-			entry.put("time", f.getTime());
+			System.out.println("frontList");
+			System.out.println(frontList);
+			System.out.println("backList");
+			System.out.println(backList);
 
-			entry
-				.put("frontend",
-						Map
-							.of("open", f.getOpen(), "high", f.getHigh(), "low", f.getLow(), "close", f.getClose(),
-									"volume", f.getVolume()));
+			int size = Math.min(frontList.size(), backList.size());
+			List<Map<String, Object>> merged = new ArrayList<>();
 
-			entry
-				.put("backend",
-						Map
-							.of("open", b.getOpen(), "high", b.getHigh(), "low", b.getLow(), "close", b.getClose(),
-									"volume", b.getVolume()));
+			for (int i = 0; i < size; i++) {
+				Map<String, Object> item = new LinkedHashMap<>();
+				Map<String, Object> f = new LinkedHashMap<>();
+				Map<String, Object> b = new LinkedHashMap<>();
+				Map<String, Object> d = new LinkedHashMap<>();
 
-			entry
-				.put("diff",
-						Map
-							.of("close", Math.abs(f.getClose() - b.getClose()), "volume",
-									Math.abs(f.getVolume() - b.getVolume())));
+				Object frontObj = frontList.get(i);
+				Object backObj = backList.get(i);
 
-			candleDiffList.add(entry);
+				long time = extractTime(frontObj);
+
+				item.put("time", time);
+				d.put("time", time);
+
+				for (String key : keys) {
+					double fv = extractValue(frontObj, key);
+					double bv = extractValue(backObj, key);
+					f.put(key, fv);
+					b.put(key, bv);
+					d.put(key + "diff", Math.abs(fv - bv));
+				}
+
+				item.put("frontend", f);
+				item.put("backend", b);
+				item.put("diff", d);
+				merged.add(item);
+			}
+
+			result.put(indicator, merged);
 		}
 
-		result.put("candles", candleDiffList);
+		return new AllComparisonResultDto(result);
+	}
 
-		return AllComparisonResultDto.builder().result(result).build();
+	private double parseDouble(Object o) {
+		if (o == null)
+			return 0.0;
+		try {
+			return Double.parseDouble(o.toString());
+		} catch (Exception e) {
+			return 0.0;
+		}
+	}
+
+	private long extractTime(Object obj) {
+		try {
+			if (obj instanceof IndicatorUtil.IndicatorPoint point)
+				return point.getTime();
+			if (obj instanceof IndicatorUtil.DualIndicatorPoint dual)
+				return dual.getTime();
+		} catch (Exception e) {
+			log.warn("⚠️ time 추출 실패: {}", obj);
+		}
+		return 0L;
+	}
+
+	private double extractValue(Object obj, String key) {
+		try {
+			if (obj instanceof IndicatorUtil.IndicatorPoint point) {
+				return "value".equals(key) ? safe(point.getValue()) : 0.0;
+			}
+			if (obj instanceof IndicatorUtil.DualIndicatorPoint dual) {
+				return switch (key) {
+				case "k" -> safe(dual.getK());
+				case "d" -> safe(dual.getD());
+				default -> 0.0;
+				};
+			}
+		} catch (Exception e) {
+			log.warn("⚠️ value 추출 실패: {}", obj);
+		}
+		return 0.0;
+	}
+
+	private double safe(Double d) {
+		return d != null ? d : 0.0;
 	}
 }

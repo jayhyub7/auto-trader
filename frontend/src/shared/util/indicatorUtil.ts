@@ -183,9 +183,17 @@ export const calculateVWBB = (
   };
 };
 
-export const formatTimestampKST = (timestamp: number): string => {
-  const date = new Date(timestamp * 1000); // ms로 변환
-  const kstOffset = 9 * 60 * 60 * 1000; // UTC+9
-  const kst = new Date(date.getTime() + kstOffset);
-  return kst.toISOString().replace("T", " ").substring(0, 19);
-};
+export function formatTimestampKST(unixTime: number): string {
+  const date = new Date(unixTime * 1000); // 초 단위 → 밀리초 단위로 변환
+  if (isNaN(date.getTime())) return "Invalid time";
+
+  return date.toLocaleString("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}

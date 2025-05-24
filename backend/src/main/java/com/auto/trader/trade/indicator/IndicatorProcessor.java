@@ -49,14 +49,18 @@ public class IndicatorProcessor {
 		try {
 			long interval = INTERVAL_MILLIS.get(timeframe);
 			long now = System.currentTimeMillis();
-			long endTime = now - (now % interval);
+
+			// ✅ 수정된 핵심 부분
+			long endTime = now - (now % interval) + interval; // 정각 +1분 보정
 			long startTime = endTime - 500 * interval;
 
-			// ✅ 선물 기준 REST API 호출
 			String url = String
 				.format("https://fapi.binance.com/fapi/v1/klines?symbol=%s&interval=%s&startTime=%d&endTime=%d", symbol,
 						timeframe, startTime, endTime);
-
+			System.out.println("url : " + url);
+			System.out.println("url : " + url);
+			System.out.println("url : " + url);
+			System.out.println("url : " + url);
 			Object[][] response = restTemplate.getForObject(url, Object[][].class);
 			List<CandleDto> result = new ArrayList<>();
 
@@ -73,9 +77,7 @@ public class IndicatorProcessor {
 				}
 			}
 
-			log
-				.info("📥 [선물] 초기 캔들 불러오기 완료 [{}]: {}개 | start={}, end={}", timeframe, result.size(), startTime,
-						endTime);
+			log.info("📥 [선물] 초기 캔들 로드 완료 [{}]: {}개 | start={}, end={}", timeframe, result.size(), startTime, endTime);
 			return result;
 
 		} catch (Exception e) {
