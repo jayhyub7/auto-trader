@@ -78,9 +78,9 @@ const IndicatorComparison = () => {
 
   const renderTripleRow = (item: any, indicatorKey: string) => {
     const isVWBB = indicatorKey.toLowerCase() === "vwbb";
-    const front = isVWBB ? item.frontend?.value ?? {} : item.frontend ?? {};
-    const back = isVWBB ? item.backend?.value ?? {} : item.backend ?? {};
-    const diff = isVWBB ? item.diff?.value ?? {} : item.diff ?? {};
+    const front = isVWBB ? item.frontend ?? {} : item.frontend ?? {};
+    const back = isVWBB ? item.backend ?? {} : item.backend ?? {};
+    const diff = isVWBB ? item.diff ?? {} : item.diff ?? {};
 
     const keys = Object.keys(front);
     const time = item.time;
@@ -198,35 +198,39 @@ const IndicatorComparison = () => {
             className="w-full"
           >
             <TabsList className="mb-2 flex flex-wrap gap-2 justify-start">
-              {Object.keys(result).map((key) => (
-                <TabsTrigger
-                  key={key}
-                  value={key}
-                  className="font-semibold text-left px-4 capitalize"
-                >
-                  {key}
-                </TabsTrigger>
-              ))}
+              {Object.entries(result)
+                .filter(([_, v]) => Array.isArray(v) && v.length > 0)
+                .map(([key]) => (
+                  <TabsTrigger
+                    key={key}
+                    value={key}
+                    className="font-semibold text-left px-4 capitalize"
+                  >
+                    {key}
+                  </TabsTrigger>
+                ))}
             </TabsList>
 
-            {Object.entries(result).map(([key, value]: any) => {
-              const sorted = Array.isArray(value)
-                ? [...value].sort((a, b) => b.time - a.time)
-                : [];
+            {Object.entries(result)
+              .filter(([_, v]) => Array.isArray(v) && v.length > 0)
+              .map(([key, value]: any) => {
+                const sorted = Array.isArray(value)
+                  ? [...value].sort((a, b) => b.time - a.time)
+                  : [];
 
-              return (
-                <TabsContent key={key} value={key}>
-                  <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(100vh-180px)]">
-                    <div className="text-base font-semibold text-green-600 mb-2">
-                      📌 {key.toUpperCase()} 지표 비교 결과
+                return (
+                  <TabsContent key={key} value={key}>
+                    <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(100vh-180px)]">
+                      <div className="text-base font-semibold text-green-600 mb-2">
+                        📌 {key.toUpperCase()} 지표 비교 결과
+                      </div>
+                      {sorted.length > 0
+                        ? sorted.map((item) => renderTripleRow(item, key))
+                        : "데이터 없음"}
                     </div>
-                    {sorted.length > 0
-                      ? sorted.map((item) => renderTripleRow(item, key))
-                      : "데이터 없음"}
-                  </div>
-                </TabsContent>
-              );
-            })}
+                  </TabsContent>
+                );
+              })}
           </Tabs>
         )}
 

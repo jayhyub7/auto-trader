@@ -23,7 +23,6 @@ public class IndicatorCache {
 	private final IndicatorUtil.VWBB vwbb;
 	private double currentPrice;
 
-	// 내부 지표를 통합 Map 으로 반환
 	public Map<String, List<?>> toMap() {
 		Map<String, List<?>> map = new LinkedHashMap<>();
 		if (rsi != null)
@@ -35,9 +34,21 @@ public class IndicatorCache {
 		if (stochRsi != null)
 			map.put("stochRsi", stochRsi);
 		if (vwbb != null) {
-			map.put("vwbb_upper", vwbb.getUpper());
-			map.put("vwbb_basis", vwbb.getBasis());
-			map.put("vwbb_lower", vwbb.getLower());
+			List<IndicatorUtil.IndicatorPoint> upper = vwbb.getUpper();
+			List<IndicatorUtil.IndicatorPoint> basis = vwbb.getBasis();
+			List<IndicatorUtil.IndicatorPoint> lower = vwbb.getLower();
+			int size = Math.min(upper.size(), Math.min(basis.size(), lower.size()));
+
+			List<Map<String, Object>> vwbbList = new java.util.ArrayList<>();
+			for (int i = 0; i < size; i++) {
+				Map<String, Object> row = new LinkedHashMap<>();
+				row.put("time", upper.get(i).getTime());
+				row.put("upper", upper.get(i).getValue());
+				row.put("basis", basis.get(i).getValue());
+				row.put("lower", lower.get(i).getValue());
+				vwbbList.add(row);
+			}
+			map.put("vwbb", vwbbList);
 		}
 		return map;
 	}

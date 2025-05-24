@@ -59,21 +59,17 @@ export const compareFrontendIndicators = async (
   const stochrsi = calculateStochRSI(candles);
   const vwbb = calculateVWBB(candles);
 
+  const vwbbList = vwbb.upper.map((v, i) => ({
+    time: v.time,
+    upper: v.value,
+    basis: vwbb.basis[i]?.value ?? 0,
+    lower: vwbb.lower[i]?.value ?? 0,
+  }));
+
   const frontendIndicators: Record<string, any[]> = {
     rsi,
     stochrsi,
-    vwbb_upper: vwbb.upper.map((v) => ({
-      time: v.time,
-      upper: v.value,
-    })),
-    vwbb_basis: vwbb.basis.map((v) => ({
-      time: v.time,
-      basis: v.value,
-    })),
-    vwbb_lower: vwbb.lower.map((v) => ({
-      time: v.time,
-      lower: v.value,
-    })),
+    vwbb: vwbbList,
   };
 
   // 백엔드 캐시 지표 불러오기
@@ -93,28 +89,20 @@ export const compareFrontendIndicators = async (
     const merged = front.map((fItem) => {
       const time = fItem.time;
       const bItem = back.find((b) => Math.floor(b.time / 1000) === time) || {};
-      console.log("[🧪 DEBUG] time 비교용", {
-        frontendTime: time,
-        backendTime: bItem.time,
-        backendTimeSec: bItem.time
-          ? Math.floor(Number(bItem.time) / 1000)
-          : null,
-        diff: time - (bItem.time ? Math.floor(Number(bItem.time) / 1000) : 0),
-      });
-      // ✅ 시간차 계산 추가
+
       let timeDiffSec = null;
       if (typeof bItem.time === "number" && !isNaN(bItem.time)) {
         const backendTimeSec =
           bItem.time >= 1e12 ? Math.floor(bItem.time / 1000) : bItem.time;
         timeDiffSec = Math.abs(time - backendTimeSec);
       }
-      console.log("timeDiffSec : ", timeDiffSec);
+
       const mergedItem: any = {
         time,
         frontend: fItem,
         backend: bItem,
         diff: {},
-        timeDiffSec, // ✅ 추가 필드
+        timeDiffSec,
       };
 
       for (const k of Object.keys(fItem)) {

@@ -53,9 +53,25 @@ public class IndicatorComparisonController {
 		result.put("stochrsi", latest(cache.getStochRsi()));
 
 		if (cache.getVwbb() != null) {
-			result.put("vwbb_upper", latest(cache.getVwbb().getUpper()));
-			result.put("vwbb_basis", latest(cache.getVwbb().getBasis()));
-			result.put("vwbb_lower", latest(cache.getVwbb().getLower()));
+			var upper = cache.getVwbb().getUpper();
+			var basis = cache.getVwbb().getBasis();
+			var lower = cache.getVwbb().getLower();
+			int size = Math.min(upper.size(), Math.min(basis.size(), lower.size()));
+			int start = Math.max(0, size - 30);
+
+			List<Map<String, Object>> combined = new java.util.ArrayList<>();
+			for (int i = start; i < size; i++) {
+				Map<String, Object> row = new LinkedHashMap<>();
+				row.put("time", upper.get(i).getTime());
+				row.put("upper", upper.get(i).getValue());
+				row.put("basis", basis.get(i).getValue());
+				row.put("lower", lower.get(i).getValue());
+				combined.add(row);
+			}
+			result.put("vwbb", combined);
+
+			// ✅ 로그 찍기: 응답 키 목록
+			System.out.println("🚨 result keys: " + result.keySet());
 		}
 
 		return ResponseEntity.ok(result);

@@ -56,15 +56,22 @@ public class IndicatorComparisonService {
 	public AllComparisonResultDto compareWithBackendOnly(String symbol, String interval) {
 		String key = symbol + "_" + interval;
 		IndicatorCache cache = IndicatorMemoryStore.get(key);
+
 		if (cache == null) {
-			log.warn("❌ [백엔드 비교] IndicatorCache 없음: {}", key);
-			throw new IllegalStateException("IndicatorCache 없음: " + key);
+			return new AllComparisonResultDto(); // 빈 응답
 		}
 
-		Map<String, List<?>> frontMap = cache.toMap(); // 기존 저장된 지표
-		Map<String, List<?>> backMap = IndicatorUtil.calculateAllIndicators(cache.getCandles()); // 지금 다시 계산
+		// 🔥 최신 30개만 슬라이스
+		Map<String, List<?>> full = cache.toMap();
+		Map<String, List<?>> latest = new LinkedHashMap<>();
 
-		return compare(frontMap, backMap);
+		for (Map.Entry<String, List<?>> entry : full.entrySet()) {
+			List<?> list = entry.getValue();
+			int size = list.size();
+			latest.put(entry.getKey(), size <= 30 ? list : list.subList(size - 30, size));
+		}
+
+		return AllComparisonResultDto.from(latest); // 또는 적절한 생성자
 	}
 
 	private AllComparisonResultDto compare(Map<String, List<?>> frontMap, Map<String, List<?>> backMap) {
