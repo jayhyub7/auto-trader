@@ -1,16 +1,15 @@
 package com.auto.trader.indicator.dto;
 
-import java.util.List;
-
-import com.auto.trader.trade.dto.CandleDto;
-
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class IndicatorComparisonRequest {
 	private String symbol;
 	private String interval;
-	private List<CandleDto> frontendCandles; // ✅ 프론트 비교에만 사용
 }

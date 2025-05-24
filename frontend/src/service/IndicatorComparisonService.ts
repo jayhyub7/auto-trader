@@ -1,4 +1,5 @@
-// 📁 src/service/IndicatorComparisonService.ts
+// 포지션 비교용 서비스
+// 파일: src/service/IndicatorComparisonService.ts
 
 import api from "@/shared/util/axios";
 import {
@@ -14,19 +15,19 @@ export interface AllComparisonResponse {
   };
 }
 
-// 캔들 조회
+const intervalMsMap: Record<string, number> = {
+  "1m": 60_000,
+  "3m": 3 * 60_000,
+  "5m": 5 * 60_000,
+  "15m": 15 * 60_000,
+  "1h": 60 * 60_000,
+  "4h": 4 * 60 * 60_000,
+};
+
 const fetchLatestCandles = async (
   symbol: string,
   interval: string
 ): Promise<Candle[]> => {
-  const intervalMsMap: Record<string, number> = {
-    "1m": 60_000,
-    "3m": 3 * 60_000,
-    "5m": 5 * 60_000,
-    "15m": 15 * 60_000,
-    "1h": 60 * 60_000,
-    "4h": 4 * 60 * 60_000,
-  };
   const intervalMs = intervalMsMap[interval];
   const now = Date.now();
   const endTime = now - (now % intervalMs) + intervalMs;
@@ -47,92 +48,159 @@ const fetchLatestCandles = async (
   }));
 };
 
-// 프론트 지표 계산 후 백엔드 캐시값과 비교
 export const compareFrontendIndicators = async (
   symbol: string,
   interval: string
 ): Promise<AllComparisonResponse> => {
   const candles = await fetchLatestCandles(symbol, interval);
 
-  // 프론트 지표 계산
-  const rsi = calculateRSI(candles);
-  const stochrsi = calculateStochRSI(candles);
-  const vwbb = calculateVWBB(candles);
+  const frontRsi = calculateRSI(candles);
+  const frontStoch = calculateStochRSI(candles);
+  const frontVwbb = calculateVWBB(candles);
 
-  const vwbbList = vwbb.upper.map((v, i) => ({
-    time: v.time,
-    upper: v.value,
-    basis: vwbb.basis[i]?.value ?? 0,
-    lower: vwbb.lower[i]?.value ?? 0,
-  }));
+  const frontResult = mergeIndicators({
+    rsi: frontRsi,
+    stochrsi: frontStoch,
+    vwbb: frontVwbb,
+  });
 
-  const frontendIndicators: Record<string, any[]> = {
-    rsi,
-    stochrsi,
-    vwbb: vwbbList,
+  const backendRes = await api.post("/indicator/backend-indicator", {
+    symbol,
+    interval,
+  });
+
+  const backend = backendRes.data;
+  const backendResult = mergeIndicators({
+    rsi: backend.rsi,
+    stochrsi: backend.stochRSI,
+    vwbb: backend.vwbb,
+  });
+
+  const result = {
+    frontend: frontResult,
+    backend: backendResult,
   };
 
-  // 백엔드 캐시 지표 불러오기
-  const res = await api.post<Record<string, any[]>>(
-    "/indicator/fetch-cached-indicators",
-    { symbol, interval }
-  );
-  const backendIndicators = res.data;
+  return { result };
+};
 
-  // 비교 결과 구성
-  const result: Record<string, any[]> = {};
+export const compareBackendIndicators = async (
+  symbol: string,
+  interval: string
+): Promise<AllComparisonResponse> => {
+  const candles = await fetchLatestCandles(symbol, interval);
 
-  for (const key of Object.keys(frontendIndicators)) {
-    const front = frontendIndicators[key];
-    const back = backendIndicators[key] ?? [];
+  const frontRsi = calculateRSI(candles);
+  const frontStoch = calculateStochRSI(candles);
+  const frontVwbb = calculateVWBB(candles);
 
-    const merged = front.map((fItem) => {
-      const time = fItem.time;
-      const bItem = back.find((b) => Math.floor(b.time / 1000) === time) || {};
+  const frontResult = mergeIndicators({
+    rsi: frontRsi,
+    stochrsi: frontStoch,
+    vwbb: frontVwbb,
+  });
 
-      let timeDiffSec = null;
-      if (typeof bItem.time === "number" && !isNaN(bItem.time)) {
-        const backendTimeSec =
-          bItem.time >= 1e12 ? Math.floor(bItem.time / 1000) : bItem.time;
-        timeDiffSec = Math.abs(time - backendTimeSec);
-      }
+  const backendRes = await api.post("/indicator/fetch-cached-indicators", {
+    symbol,
+    interval,
+  });
 
-      const mergedItem: any = {
-        time,
-        frontend: fItem,
-        backend: bItem,
-        diff: {},
-        timeDiffSec,
-      };
+  const backend = backendRes.data;
+  const backendResult = mergeIndicators({
+    rsi: backend.rsi,
+    stochrsi: backend.stochrsi,
+    vwbb: backend.vwbb,
+  });
 
-      for (const k of Object.keys(fItem)) {
-        if (k === "time") continue;
-        const fVal = fItem[k] ?? 0;
-        const bVal = bItem[k] ?? 0;
-        const rawDiff = Math.abs(fVal - bVal);
-        mergedItem.diff[k + "diff"] = rawDiff < 1e-8 ? 0 : +rawDiff.toFixed(6);
-      }
+  const result: AllComparisonResponse["result"] = {};
 
-      return mergedItem;
-    });
+  for (const key of ["rsi", "stochrsi", "vwbb"] as const) {
+    const frontMap = frontResult[key] || {};
+    const backMap = backendResult[key] || {};
+    const timeSet = new Set([
+      ...Object.keys(frontMap),
+      ...Object.keys(backMap),
+    ]);
 
-    result[key] = merged;
+    result[key] = Array.from(timeSet)
+      .sort()
+      .map((t) => {
+        const time = Number(t);
+        const f = frontMap[time];
+        const b = backMap[time];
+        const row: any = { time };
+        if (f) row.frontend = f;
+        if (b) row.backend = b;
+        if (f && b) row.diff = computeDiff(f, b);
+        return row;
+      });
   }
 
   return { result };
 };
 
-// 백엔드 기준 지표를 계산해서 캐시와 비교
-export const compareBackendIndicators = async (
-  symbol: string,
-  interval: string
-): Promise<AllComparisonResponse> => {
-  const res = await api.post<AllComparisonResponse>(
-    "/indicator/compare-backend",
-    {
-      symbol,
-      interval,
+function mergeIndicators(sources: {
+  rsi?: { time: number; value: number }[];
+  stochrsi?: { time: number; k: number; d: number }[];
+  vwbb?: {
+    upper: { time: number; value: number }[];
+    basis: { time: number; value: number }[];
+    lower: { time: number; value: number }[];
+  };
+}) {
+  const rsi: { time: number; value: number }[] = [];
+  const stochrsi: { time: number; k: number; d: number }[] = [];
+  const vwbb: {
+    time: number;
+    upper?: number;
+    basis?: number;
+    lower?: number;
+  }[] = [];
+
+  if (sources.rsi) {
+    for (const item of sources.rsi) {
+      rsi.push({ time: item.time, value: item.value });
     }
-  );
-  return res.data;
-};
+  }
+
+  if (sources.stochrsi) {
+    for (const item of sources.stochrsi) {
+      stochrsi.push({ time: item.time, k: item.k, d: item.d });
+    }
+  }
+
+  if (sources.vwbb) {
+    const upper = sources.vwbb.upper ?? [];
+    const basis = sources.vwbb.basis ?? [];
+    const lower = sources.vwbb.lower ?? [];
+    const size = Math.min(upper.length, basis.length, lower.length);
+
+    for (let i = 0; i < size; i++) {
+      vwbb.push({
+        time: upper[i].time,
+        upper: upper[i].value,
+        basis: basis[i].value,
+        lower: lower[i].value,
+      });
+    }
+  }
+
+  return {
+    rsi,
+    stochrsi,
+    vwbb,
+  };
+}
+
+function computeDiff(
+  front: Record<string, number>,
+  back: Record<string, number>
+) {
+  const diff: Record<string, number> = {};
+  for (const key of Object.keys(front)) {
+    const fv = front[key] ?? 0;
+    const bv = back[key] ?? 0;
+    diff[key + "diff"] = Math.abs(fv - bv);
+  }
+  return diff;
+}
