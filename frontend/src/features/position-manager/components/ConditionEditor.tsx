@@ -1,15 +1,15 @@
 // 📄 ConditionEditor.tsx
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Timeframe, TIMEFRAME_LABELS } from "@/constants/TimeFrame";
 import {
   IndicatorCondition,
   ConditionPhase,
-  IndicatorType,
   VWBBOperator,
-  IndicatorTypes,
-  ConditionPhases,
+  getIndicatorTypes,
+  IndicatorTypeResponse,
   VWBBOperators,
+  ConditionPhases,
 } from "@/features/position-manager/services/PositionManagerService";
 
 interface ConditionEditorProps {
@@ -54,6 +54,12 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
   positions,
   setPositions,
 }) => {
+  const [options, setOptions] = useState<IndicatorTypeResponse[]>([]);
+
+  useEffect(() => {
+    getIndicatorTypes().then(setOptions);
+  }, []);
+
   useEffect(() => {
     if (selectedIndicator === "VWBB") {
       const isVWBBOperator = Object.values(VWBBOperators).includes(
@@ -62,7 +68,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
       if (!isVWBBOperator) {
         setCurrentCondition((prev) => ({
           ...prev,
-          type: IndicatorTypes.VWBB,
+          type: "VWBB",
           operator: VWBBOperators.UPPER,
         }));
       }
@@ -77,6 +83,11 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
       }));
     }
   }, [selectedIndicator]);
+
+  const indicators = options.filter((o) => o.conditionType === "INDICATOR");
+  const strategies = options.filter((o) => o.conditionType === "STRATEGY");
+  const selectedMeta = options.find((o) => o.type === selectedIndicator);
+  const isStrategy = selectedMeta?.conditionType === "STRATEGY";
 
   return (
     <div className="mt-6 border-2 border-gray-700 p-4 bg-gray-800 rounded-md relative">
@@ -126,7 +137,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
         </button>
       </div>
 
-      {selectedIndicator && (
+      {!isStrategy && selectedIndicator && (
         <div className="flex flex-wrap gap-4 text-white mb-4">
           {Object.values(Timeframe).map((tf) => (
             <label key={tf} className="flex items-center gap-1">
@@ -149,14 +160,23 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
         className="mb-4 px-2 py-1 rounded bg-gray-700 text-gray-300"
       >
         <option value="">-- 지표/매매법 선택 --</option>
-        <option value={IndicatorTypes.RSI}>RSI</option>
-        <option value={IndicatorTypes.STOCH_RSI}>STOCH_RSI</option>
-        <option value={IndicatorTypes.VWBB}>VWBB</option>
-        <option value="스탑헌팅">스탑헌팅</option>
-        <option value="베어트랩">베어트랩</option>
+        <optgroup label="지표">
+          {indicators.map((item) => (
+            <option key={item.type} value={item.type}>
+              {item.label}
+            </option>
+          ))}
+        </optgroup>
+        <optgroup label="매매법">
+          {strategies.map((item) => (
+            <option key={item.type} value={item.type}>
+              {item.label}
+            </option>
+          ))}
+        </optgroup>
       </select>
 
-      {selectedIndicator === IndicatorTypes.RSI && (
+      {selectedIndicator === "RSI" && (
         <div className="flex items-center gap-3">
           <input
             type="number"
@@ -164,7 +184,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
             onChange={(e) =>
               setCurrentCondition((prev) => ({
                 ...prev,
-                type: IndicatorTypes.RSI,
+                type: "RSI",
                 value: Number(e.target.value),
               }))
             }
@@ -192,7 +212,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
         </div>
       )}
 
-      {selectedIndicator === IndicatorTypes.STOCH_RSI && (
+      {selectedIndicator === "STOCH_RSI" && (
         <div className="flex flex-col gap-2 text-white">
           <div className="flex items-center gap-3">
             <label>K</label>
@@ -202,7 +222,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
               onChange={(e) =>
                 setCurrentCondition((prev) => ({
                   ...prev,
-                  type: IndicatorTypes.STOCH_RSI,
+                  type: "STOCH_RSI",
                   k: Number(e.target.value),
                 }))
               }
@@ -243,7 +263,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
         </div>
       )}
 
-      {selectedIndicator === IndicatorTypes.VWBB && (
+      {selectedIndicator === "VWBB" && (
         <div className="flex gap-4 text-white">
           {Object.values(VWBBOperators).map((op) => (
             <label key={op} className="flex items-center gap-2">
@@ -255,7 +275,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
                 onChange={() =>
                   setCurrentCondition((prev) => ({
                     ...prev,
-                    type: IndicatorTypes.VWBB,
+                    type: "VWBB",
                     operator: op,
                   }))
                 }

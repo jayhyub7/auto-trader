@@ -2,6 +2,8 @@
 
 package com.auto.trader.trade;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -16,7 +18,9 @@ import com.auto.trader.exchange.dto.OrderResult;
 import com.auto.trader.position.entity.Position;
 import com.auto.trader.position.entity.PositionOpen;
 import com.auto.trader.position.enums.AmountType;
+import com.auto.trader.position.enums.ConditionType;
 import com.auto.trader.position.enums.Direction;
+import com.auto.trader.position.enums.PositionOpenStatus;
 import com.auto.trader.position.evaluator.entry.EntryConditionEvaluator;
 import com.auto.trader.position.evaluator.entry.EntryEvaluatorRegistry;
 import com.auto.trader.position.repository.PositionOpenRepository;
@@ -87,6 +91,17 @@ public class EntryTradeScheduler {
 				continue;
 			}
 
+			Duration cooldown = Duration.ofSeconds(120);
+
+			if (positionOpen.getExecutedAt() != null) {
+				LocalDateTime nextTry = positionOpen.getExecutedAt().plus(cooldown);
+				if (LocalDateTime.now().isBefore(nextTry)) {
+					entryLogManager
+						.log("⏳ 쿨다운 대기 중 → 건너뜀: executedAt={}, nextTry={}", positionOpen.getExecutedAt(), nextTry);
+					continue;
+				}
+			}
+
 			if (positionOpen.getStopLoss() == 0) {
 				entryLogManager.log("❌ StopLoss가 설정되지 않아 주문 실행 중단: {}", position.getTitle());
 				continue;
@@ -94,7 +109,9 @@ public class EntryTradeScheduler {
 
 			boolean isPass = true;
 			for (var cond : position.getConditions()) {
-				String key = "BTCUSDT_" + cond.getTimeframe().getLabel();
+				String timeframeLabel = cond.getConditionType() == ConditionType.STRATEGY ? "1m"
+						: cond.getTimeframe().getLabel();
+				String key = "BTCUSDT_" + timeframeLabel;
 				IndicatorCache cache = IndicatorMemoryStore.get(key);
 				if (cache == null) {
 					entryLogManager.log("⚠️ 지표 캐시 없음: {}", key);
@@ -201,7 +218,9 @@ public class EntryTradeScheduler {
 				entryLogManager.log("✅ 시장가 주문 체결 완료. 주문ID: {}", result.getOrderId());
 				entryLogManager.log("💰 체결 가격: {} (예상가: {})", result.getPrice(), observedPrice);
 				entryLogManager.log("⏱️ 주문 실행 소요 시간: {}초", result.getExecutionTimeSeconds());
-
+				positionOpen.setExecuted(false);
+				positionOpen.setExecutedAt(LocalDateTime.now());
+				positionOpen.setStatus(PositionOpenStatus.RUNNING);
 				executedOrderService
 					.saveExecutedOrderWithIndicators(result, positionOpen, position.getExchange().name(), symbol,
 							observedPrice);

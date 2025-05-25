@@ -1,3 +1,5 @@
+// PositionOpen.tsx
+
 import React, { useEffect, useState } from "react";
 import {
   PositionOpenDto,
@@ -24,7 +26,6 @@ const PositionOpen = () => {
   const [openDataMap, setOpenDataMap] = useState<
     Record<number, PositionOpenDto>
   >({});
-  const openDataInitMap: Record<number, PositionOpenDto> = {};
   const [availableMap, setAvailableMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -122,23 +123,24 @@ const PositionOpen = () => {
   };
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-4 flex flex-wrap gap-4">
       {positions.length === 0 ? (
-        <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
+        <div className="flex items-center justify-center h-64 text-gray-400 text-sm w-full">
           📭 포지션 관리에서 포지션을 등록하세요.
         </div>
       ) : (
         positions.map((position) => (
-          <PositionCard
-            key={position.id}
-            position={position}
-            balance={balances[position.exchange] ?? 0}
-            available={availableMap[position.exchange.toUpperCase()] ?? 0}
-            status={statusMap[position.id] ?? PositionOpenStatuses.IDLE}
-            onUpdateStatus={updateStatus}
-            openData={openDataMap[position.id]}
-            onDelete={handleDelete}
-          />
+          <div key={position.id} className="w-full md:w-[49%]">
+            <PositionCard
+              position={position}
+              balance={balances[position.exchange] ?? 0}
+              available={availableMap[position.exchange.toUpperCase()] ?? 0}
+              status={statusMap[position.id] ?? PositionOpenStatuses.IDLE}
+              onUpdateStatus={updateStatus}
+              openData={openDataMap[position.id]}
+              onDelete={handleDelete}
+            />
+          </div>
         ))
       )}
     </div>

@@ -71,9 +71,15 @@ const validatePosition = (position: Position): ValidationResult => {
   if (!position.title?.trim()) {
     return { isValid: false, message: "포지션 제목은 필수입니다." };
   }
-  if (!position.conditions || position.conditions.length === 0) {
+  console.log("position : ", position);
+  const hasValidCondition = position.conditions?.some(
+    (cond) => cond.enabled !== false && cond.type
+  );
+
+  if (!hasValidCondition) {
     return { isValid: false, message: "조건이 1개 이상 필요합니다." };
   }
+
   return { isValid: true };
 };
 
@@ -130,3 +136,14 @@ export const deletePosition = async (id: number) => {
 export const deletePositions = async (ids: number[]) => {
   return await api.post("/positions/delete", ids);
 };
+
+export interface IndicatorTypeResponse {
+  type: string;
+  label: string;
+  conditionType: "INDICATOR" | "STRATEGY";
+}
+
+export async function getIndicatorTypes(): Promise<IndicatorTypeResponse[]> {
+  const res = await api.get("/positions/indicator-types");
+  return res.data;
+}

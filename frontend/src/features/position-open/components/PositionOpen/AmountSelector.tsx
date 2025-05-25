@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { toast, ToastContainer } from "react-toastify"; // 반드시 import 필요
+// AmountSelector.tsx
+
+import React, { useEffect, useState } from "react";
+import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 interface AmountSelectorProps {
@@ -22,11 +24,10 @@ const AmountSelector: React.FC<AmountSelectorProps> = ({
 
   useEffect(() => {
     const calculated = +(maxAmount * (percent / 100)).toFixed(4);
-    setPercent(initialPercent ?? 0);
     setAmount(calculated);
     onChange(calculated);
     if (onPercentChange) {
-      onPercentChange(percent); // ✅ 비율도 전달
+      onPercentChange(percent);
     }
   }, [percent, maxAmount, onChange, onPercentChange]);
 
@@ -58,8 +59,8 @@ const AmountSelector: React.FC<AmountSelectorProps> = ({
   };
 
   return (
-    <div className="bg-gray-800 p-4 rounded-xl text-white">
-      <label className="block mb-2 text-sm text-gray-300">비율 선택</label>
+    <div className="bg-gray-800 p-1 rounded-md text-white text-xs">
+      <label className="block mb-1 text-gray-300">비율 선택</label>
       <input
         type="range"
         min={0}
@@ -67,19 +68,19 @@ const AmountSelector: React.FC<AmountSelectorProps> = ({
         step={1}
         value={percent}
         onChange={(e) => setPercent(Number(e.target.value))}
-        className="w-full mb-2"
+        className="w-full mb-1"
       />
-      <div className="flex justify-between text-xs text-gray-400 mb-2">
+      <div className="flex justify-between text-[10px] text-gray-400 mb-1">
         <span>0%</span>
         <span>100%</span>
       </div>
 
-      <div className="flex gap-2 mb-2">
+      <div className="flex gap-1 mb-1">
         {quickPercents.map((p) => (
           <button
             key={p}
             onClick={() => setPercent(p)}
-            className={`px-2 py-1 rounded text-sm ${
+            className={`px-2 py-[2px] rounded text-xs ${
               percent === p ? "bg-yellow-500 text-black" : "bg-gray-700"
             }`}
           >
@@ -88,19 +89,16 @@ const AmountSelector: React.FC<AmountSelectorProps> = ({
         ))}
       </div>
 
-      <div className="mt-4">
-        <label className="block mb-1 text-sm text-gray-300">
-          비율 선택시 투입 금액은 사용가능 금액에 따라 변합니다.
-        </label>
+      <div>
         <input
           type="text"
           value={`(${percent}%) ${amount}`}
-          readOnly // ✅ readonly 속성은 boolean입니다
-          className="w-full bg-gray-800 text-white p-2 rounded"
+          readOnly
+          className="w-full bg-gray-800 text-white text-xs px-2 py-1 rounded border border-gray-600"
         />
       </div>
 
-      <div className="text-right text-xs text-gray-400 mt-1">
+      <div className="text-right text-[10px] text-gray-400 mt-1">
         최대 가능: {maxAmount} USDT
       </div>
     </div>

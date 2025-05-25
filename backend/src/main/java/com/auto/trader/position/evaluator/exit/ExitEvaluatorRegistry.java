@@ -13,6 +13,7 @@ public class ExitEvaluatorRegistry {
 		evaluators.put(IndicatorType.VWBB, new ExitVwbbEvaluator());
 		evaluators.put(IndicatorType.FIVE_CANDLE, new ExitFiveCandleEvaluator());
 		evaluators.put(IndicatorType.STOP_HUNTING, new ExitStopHuntingEvaluator());
+		evaluators.put(IndicatorType.STOP_HUNTING_1M, new ExitStopHuntingEvaluator_1m());
 	}
 
 	public static ExitConditionEvaluator get(IndicatorType type) {

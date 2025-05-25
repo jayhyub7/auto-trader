@@ -2,6 +2,7 @@
 
 package com.auto.trader.trade;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -18,6 +19,7 @@ import com.auto.trader.position.entity.IndicatorCondition;
 import com.auto.trader.position.entity.Position;
 import com.auto.trader.position.entity.PositionOpen;
 import com.auto.trader.position.enums.AmountType;
+import com.auto.trader.position.enums.ConditionType;
 import com.auto.trader.position.enums.Direction;
 import com.auto.trader.position.enums.PositionOpenStatus;
 import com.auto.trader.position.evaluator.exit.ExitConditionEvaluator;
@@ -110,8 +112,10 @@ public class ExitTradeScheduler {
 				if (isStopLossHit)
 					break;
 
-				String key = "BTCUSDT_" + cond.getTimeframe().getLabel();
-				IndicatorCache cache = indicatorStore.get(key);
+				String timeframeLabel = cond.getConditionType() == ConditionType.STRATEGY ? "1m"
+						: cond.getTimeframe().getLabel();
+				String key = "BTCUSDT_" + timeframeLabel;
+				IndicatorCache cache = IndicatorMemoryStore.get(key);
 				if (cache == null) {
 					exitLogManager.log("⚠️ 지표 캐시 없음: {}", key);
 					isPass = false;
@@ -172,7 +176,10 @@ public class ExitTradeScheduler {
 				PositionLogUtil.log(position);
 				tradeLogService.saveTradeLogWithConditions(result, position, positionOpen);
 				positionOpen.setExecuted(false);
+				positionOpen.setExecutedAt(LocalDateTime.now());
+				positionOpen.setStatus(PositionOpenStatus.PENDING);
 				positionOpenRepository.save(positionOpen);
+
 			}
 		}
 	}

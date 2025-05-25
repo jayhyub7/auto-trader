@@ -111,36 +111,36 @@ const PositionCard = ({
   };
 
   return (
-    <div className="border p-4 rounded-xl shadow-sm space-y-2">
-      <div className="flex justify-between items-center mb-2">
-        <div className="text-sm text-yellow-400 font-semibold mb-1">
+    <div className="border p-2 rounded-lg shadow-sm space-y-1 text-xs">
+      <div className="flex justify-between items-center">
+        <div className="text-yellow-400 font-semibold text-xs">
           {position.exchange?.toUpperCase()}
         </div>
-        <div className="text-lg font-semibold flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <span>{position.title}</span>
           {position.direction === "LONG" && (
-            <span className="text-green-400 text-sm font-semibold">[롱]</span>
+            <span className="text-green-400 font-semibold">[롱]</span>
           )}
           {position.direction === "SHORT" && (
-            <span className="text-red-400 text-sm font-semibold">[숏]</span>
+            <span className="text-red-400 font-semibold">[숏]</span>
           )}
-          <div className="flex items-center gap-1 ml-4">
+          <div className="flex items-center gap-1">
             <input
               type="number"
               value={leverage}
               onChange={(e) => setLeverage(Number(e.target.value))}
-              className="w-16 px-2 py-1 rounded bg-gray-700 border border-gray-600 text-sm"
+              className="w-12 px-1 py-[2px] rounded bg-gray-700 border border-gray-600 text-xs"
               min={1}
             />
-            <span className="text-sm text-white">X</span>
+            <span className="text-xs">X</span>
           </div>
         </div>
       </div>
 
       {position.conditions.length > 0 && (
-        <div className="text-sm text-gray-300">
+        <div className="text-gray-300 text-[10px]">
           조건:
-          <ul className="list-disc ml-6 mt-1 space-y-1">
+          <ul className="ml-4 list-disc space-y-[2px]">
             {position.conditions.map((cond, idx) => (
               <li
                 key={idx}
@@ -157,48 +157,46 @@ const PositionCard = ({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4 items-start mb-4">
+      <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block mb-1 text-sm">Take Profit (%)</label>
+          <label className="block mb-1 text-[10px]">TP (%)</label>
           <input
             type="number"
             value={takeProfit}
             onChange={(e) => setTakeProfit(Number(e.target.value))}
-            className="w-full px-2 py-1 rounded bg-gray-700 border border-gray-600"
-            placeholder="예: 15"
+            className="w-full px-2 py-[2px] rounded bg-gray-700 border border-gray-600 text-xs"
           />
         </div>
 
         <div>
-          <label className="block mb-1 text-sm text-red-400">
-            Stop Loss (%) <span className="text-yellow-400">*</span>
+          <label className="block mb-1 text-[10px] text-red-400">
+            SL (%) <span className="text-yellow-400">*</span>
           </label>
           <input
             type="number"
             value={stopLoss}
             onChange={(e) => setStopLoss(Number(e.target.value))}
-            className="w-full px-2 py-1 rounded bg-gray-700 border border-gray-600"
-            placeholder="예: 5"
+            className="w-full px-2 py-[2px] rounded bg-gray-700 border border-gray-600 text-xs"
             required
           />
         </div>
 
         <div>
-          <label className="block mb-1 text-sm">금액 유형</label>
+          <label className="block mb-1 text-[10px]">금액 유형</label>
           <select
             value={amountType ?? AmountTypes.FIXED}
             onChange={(e) => setAmountType(e.target.value as AmountTypes)}
-            className="w-full px-2 py-1 rounded bg-gray-700 border border-gray-600"
+            className="w-full px-2 py-[2px] rounded bg-gray-700 border border-gray-600 text-xs"
           >
-            <option value={AmountTypes.FIXED}>고정 금액</option>
+            <option value={AmountTypes.FIXED}>고정</option>
             <option value={AmountTypes.PERCENT}>비율</option>
           </select>
         </div>
 
         <div>
           {amountType === AmountTypes.FIXED ? (
-            <div>
-              <label className="block mb-1 text-sm">금액</label>
+            <>
+              <label className="block mb-1 text-[10px]">금액</label>
               <input
                 type="number"
                 value={amount}
@@ -215,10 +213,9 @@ const PositionCard = ({
                     setAmount(displayedAvailable);
                   }
                 }}
-                className="w-full px-2 py-1 rounded bg-gray-700 border border-gray-600"
-                placeholder="예: 100"
+                className="w-full px-2 py-[2px] rounded bg-gray-700 border border-gray-600 text-xs"
               />
-            </div>
+            </>
           ) : (
             <AmountSelector
               maxAmount={displayedAvailable}
@@ -232,48 +229,45 @@ const PositionCard = ({
             />
           )}
         </div>
-
-        <div className="col-span-2 text-sm text-gray-400">
-          잔고: {balance.toFixed(2)} USDT
-          <br />
-          {isSimulating ? (
-            <div className="mt-1">
-              사용 가능:{" "}
-              <input
-                type="number"
-                value={simulatedAvailable}
-                onChange={(e) =>
-                  setSimulatedAvailable(Math.max(0, Number(e.target.value)))
-                }
-                className="px-2 py-1 w-32 rounded bg-gray-700 border border-gray-600 text-white text-sm"
-              />{" "}
-              USDT
-            </div>
-          ) : (
-            <>사용 가능: {available.toFixed(2)} USDT</>
-          )}
-        </div>
       </div>
 
-      <div className="flex gap-3 items-center mb-2">
+      <div className="text-[10px] text-gray-400">
+        잔고: {balance.toFixed(2)} USDT <br />
+        사용 가능:{" "}
+        {isSimulating ? (
+          <input
+            type="number"
+            value={simulatedAvailable}
+            onChange={(e) =>
+              setSimulatedAvailable(Math.max(0, Number(e.target.value)))
+            }
+            className="px-2 py-[2px] w-20 rounded bg-gray-700 border border-gray-600 text-xs"
+          />
+        ) : (
+          available.toFixed(2)
+        )}{" "}
+        USDT
+      </div>
+
+      <div className="flex items-center gap-2">
         <input
           type="checkbox"
           id={`sim-${position.id}`}
           checked={isSimulating}
           onChange={(e) => setIsSimulating(e.target.checked)}
         />
-        <label htmlFor={`sim-${position.id}`} className="text-sm text-gray-200">
-          시뮬레이션 모드
+        <label htmlFor={`sim-${position.id}`} className="text-xs text-gray-200">
+          시뮬레이션
         </label>
       </div>
 
-      <div className="flex gap-3 items-center">
-        <span className="text-sm text-yellow-400">상태: {status}</span>
+      <div className="flex gap-2 items-center mt-1">
+        <span className="text-xs text-yellow-400">상태: {status}</span>
 
         <button
           disabled={!isStartable}
           onClick={handleClick}
-          className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded text-sm"
+          className="px-2 py-[2px] bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded text-xs"
         >
           실행
         </button>
@@ -293,7 +287,7 @@ const PositionCard = ({
               simulatedAvailable: isSimulating ? simulatedAvailable : undefined,
             })
           }
-          className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded text-sm"
+          className="px-2 py-[2px] bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded text-xs"
         >
           취소
         </button>

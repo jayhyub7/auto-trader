@@ -173,8 +173,7 @@ public class PositionOpenService {
 			List<PositionOpen> filteredOpens = p
 				.getPositionOpenList()
 				.stream()
-				.filter(o -> !o.isExecuted()
-						&& (o.getStatus() == PositionOpenStatus.RUNNING || o.getStatus() == PositionOpenStatus.PENDING))
+				.filter(o -> !o.isExecuted() && (o.getStatus() == PositionOpenStatus.RUNNING))
 				.toList();
 
 			List<IndicatorCondition> filteredConditions = p

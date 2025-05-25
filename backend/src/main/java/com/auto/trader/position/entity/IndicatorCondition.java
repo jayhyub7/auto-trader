@@ -2,6 +2,7 @@ package com.auto.trader.position.entity;
 
 import com.auto.trader.domain.BaseEntity;
 import com.auto.trader.position.enums.ConditionPhase;
+import com.auto.trader.position.enums.ConditionType;
 import com.auto.trader.position.enums.IndicatorType;
 import com.auto.trader.position.enums.Operator;
 import com.auto.trader.position.enums.Timeframe;
@@ -32,6 +33,10 @@ public class IndicatorCondition extends BaseEntity {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private ConditionType conditionType;
 
 	@Enumerated(EnumType.STRING)
 	private IndicatorType type;

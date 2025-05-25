@@ -10,12 +10,14 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import com.auto.trader.domain.User;
+import com.auto.trader.position.dto.IndicatorTypeDto;
 import com.auto.trader.position.dto.PositionDto;
 import com.auto.trader.position.dto.PositionDto.IndicatorConditionDto;
 import com.auto.trader.position.entity.IndicatorCondition;
 import com.auto.trader.position.entity.Position;
 import com.auto.trader.position.entity.PositionOpen;
 import com.auto.trader.position.enums.PositionOpenStatus;
+import com.auto.trader.position.repository.IndicatorTypeRepository;
 import com.auto.trader.position.repository.PositionOpenRepository;
 import com.auto.trader.position.repository.PositionRepository;
 
@@ -30,6 +32,11 @@ public class PositionService {
 
 	private final PositionRepository positionRepository;
 	private final PositionOpenRepository positionOpenRepository;
+	private final IndicatorTypeRepository indicatorTypeRepository;
+
+	public List<IndicatorTypeDto> getIndicatorTypes() {
+		return indicatorTypeRepository.findAll().stream().map(IndicatorTypeDto::from).toList();
+	}
 
 	public List<PositionDto> findAll() {
 		return positionRepository.findAll().stream().map(this::toDto).collect(Collectors.toList());
@@ -117,7 +124,7 @@ public class PositionService {
 					.position(position)
 					.build())
 				.toList();
-
+			conditions.forEach(c -> c.setConditionType(c.getType().getConditionType()));
 			position.setConditions(conditions);
 		}
 
@@ -155,6 +162,7 @@ public class PositionService {
 				target.setTimeframe(dto.getTimeframe());
 				target.setConditionPhase(dto.getConditionPhase());
 				target.setEnabled(dto.isEnabled());
+				target.setConditionType(dto.getType().getConditionType());
 			} else {
 				IndicatorCondition newCond = IndicatorCondition
 					.builder()
@@ -168,6 +176,7 @@ public class PositionService {
 					.enabled(dto.isEnabled())
 					.position(position)
 					.build();
+				newCond.setConditionType(newCond.getType().getConditionType());
 				existing.add(newCond);
 			}
 		}
