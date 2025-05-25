@@ -239,4 +239,22 @@ public class BinanceServiceImpl extends AbstractExchangeService implements Excha
 			return false;
 		}
 	}
+
+	@Override
+	public void setLeverage(ApiKey apiKey, String symbol, int leverage) {
+		try {
+			String path = "/fapi/v1/leverage";
+			String payload = "symbol=" + symbol + "&leverage=" + leverage;
+
+			SignedRequest signed = buildSignedRequest(apiKey, path, payload, HttpMethod.POST);
+
+			HttpEntity<String> entity = new HttpEntity<>(null, signed.getHeaders());
+			ResponseEntity<String> result = restTemplate
+				.postForEntity(BASE_URL + path + "?" + signed.getQueryString(), entity, String.class);
+			log.info("setLeverage result : {}", result);
+		} catch (Exception e) {
+			log.error("❌ Binance 레버리지 설정 실패: symbol={}, leverage={}", symbol, leverage, e);
+		}
+	}
+
 }

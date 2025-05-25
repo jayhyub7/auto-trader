@@ -57,10 +57,7 @@ public class IndicatorProcessor {
 			String url = String
 				.format("https://fapi.binance.com/fapi/v1/klines?symbol=%s&interval=%s&startTime=%d&endTime=%d", symbol,
 						timeframe, startTime, endTime);
-			System.out.println("url : " + url);
-			System.out.println("url : " + url);
-			System.out.println("url : " + url);
-			System.out.println("url : " + url);
+
 			Object[][] response = restTemplate.getForObject(url, Object[][].class);
 			List<CandleDto> result = new ArrayList<>();
 

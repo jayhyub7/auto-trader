@@ -122,8 +122,13 @@ public class EntryTradeScheduler {
 
 				var apiKey = apiKeyService.getValidatedKey(position.getUser(), position.getExchange());
 				ExchangeService exchangeService = exchangeRouter.getService(position.getExchange());
+
 				String symbol = "BTCUSDT";
 				Direction direction = position.getDirection();
+				double leverage = positionOpen.getLeverage();
+				if (!position.isSimulation()) {
+					exchangeService.setLeverage(apiKey, symbol, (int) leverage);
+				}
 
 				var cache = IndicatorMemoryStore.get("BTCUSDT_1m");
 				if (cache == null || cache.getCandles().isEmpty()) {
