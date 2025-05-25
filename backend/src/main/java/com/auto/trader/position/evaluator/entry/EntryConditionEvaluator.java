@@ -1,17 +1,22 @@
 package com.auto.trader.position.evaluator.entry;
 
 import com.auto.trader.position.entity.IndicatorCondition;
+import com.auto.trader.position.enums.Direction;
 import com.auto.trader.position.enums.Operator;
 import com.auto.trader.scheduler.SchedulerLogManager;
 import com.auto.trader.trade.indicator.IndicatorCache;
 
 public interface EntryConditionEvaluator {
-	boolean evaluate(IndicatorCondition cond, IndicatorCache cache, SchedulerLogManager log);
+	boolean evaluate(IndicatorCondition cond, IndicatorCache cache, Direction direction, SchedulerLogManager log);
 }
 
+// ─────────────────────────────
+// ✅ RSI 조건 평가기
+// ─────────────────────────────
 class RsiEvaluator implements EntryConditionEvaluator {
 	@Override
-	public boolean evaluate(IndicatorCondition cond, IndicatorCache cache, SchedulerLogManager log) {
+	public boolean evaluate(IndicatorCondition cond, IndicatorCache cache, Direction direction,
+			SchedulerLogManager log) {
 		var rsiList = cache.getRsi();
 		if (rsiList.isEmpty()) {
 			log.log("⚠️ RSI 리스트 비어 있음");
@@ -22,16 +27,12 @@ class RsiEvaluator implements EntryConditionEvaluator {
 		double currentRsi = rsiList.get(rsiList.size() - 1).getValue();
 		log.log("📈 [RSI 검사] 현재: {}, 기준: {}, 연산자: {}", currentRsi, value, cond.getOperator());
 
-		if (cond.getOperator() == Operator.이상) {
-			if (currentRsi < value) {
-				log.log("❌ RSI 조건 실패: {} < {}", currentRsi, value);
-				return false;
-			}
-		} else if (cond.getOperator() == Operator.이하) {
-			if (currentRsi > value) {
-				log.log("❌ RSI 조건 실패: {} > {}", currentRsi, value);
-				return false;
-			}
+		if (cond.getOperator() == Operator.이상 && currentRsi < value) {
+			log.log("❌ RSI 조건 실패: {} < {}", currentRsi, value);
+			return false;
+		} else if (cond.getOperator() == Operator.이하 && currentRsi > value) {
+			log.log("❌ RSI 조건 실패: {} > {}", currentRsi, value);
+			return false;
 		}
 
 		log.log("✅ RSI 조건 통과");
@@ -39,9 +40,13 @@ class RsiEvaluator implements EntryConditionEvaluator {
 	}
 }
 
+// ─────────────────────────────
+// ✅ StochRSI 조건 평가기
+// ─────────────────────────────
 class StochRsiEvaluator implements EntryConditionEvaluator {
 	@Override
-	public boolean evaluate(IndicatorCondition cond, IndicatorCache cache, SchedulerLogManager log) {
+	public boolean evaluate(IndicatorCondition cond, IndicatorCache cache, Direction direction,
+			SchedulerLogManager log) {
 		var stochList = cache.getStochRsi();
 		if (stochList.isEmpty()) {
 			log.log("⚠️ StochRSI 리스트 비어 있음");
@@ -80,11 +85,15 @@ class StochRsiEvaluator implements EntryConditionEvaluator {
 	}
 }
 
+// ─────────────────────────────
+// ✅ VWBB 조건 평가기
+// ─────────────────────────────
 class VwbbEvaluator implements EntryConditionEvaluator {
 	private static final double VWBB_TOLERANCE_RATIO = 0.00005; // 0.005%
 
 	@Override
-	public boolean evaluate(IndicatorCondition cond, IndicatorCache cache, SchedulerLogManager log) {
+	public boolean evaluate(IndicatorCondition cond, IndicatorCache cache, Direction direction,
+			SchedulerLogManager log) {
 		var basis = cache.getVwbb().getBasis();
 		var upper = cache.getVwbb().getUpper();
 		var lower = cache.getVwbb().getLower();

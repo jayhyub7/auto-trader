@@ -109,7 +109,7 @@ public class EntryTradeScheduler {
 					break;
 				}
 
-				boolean passed = evaluator.evaluate(cond, cache, entryLogManager);
+				boolean passed = evaluator.evaluate(cond, cache, position.getDirection(), entryLogManager);
 				if (!passed) {
 					entryLogManager.log("❌ 조건 미충족 → 다음 포지션으로");
 					isPass = false;

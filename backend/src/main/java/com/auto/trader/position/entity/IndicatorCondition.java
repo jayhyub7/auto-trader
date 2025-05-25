@@ -2,7 +2,6 @@ package com.auto.trader.position.entity;
 
 import com.auto.trader.domain.BaseEntity;
 import com.auto.trader.position.enums.ConditionPhase;
-import com.auto.trader.position.enums.Direction;
 import com.auto.trader.position.enums.IndicatorType;
 import com.auto.trader.position.enums.Operator;
 import com.auto.trader.position.enums.Timeframe;
@@ -30,30 +29,31 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class IndicatorCondition extends BaseEntity {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    @Enumerated(EnumType.STRING)
-    private IndicatorType type;
+	@Enumerated(EnumType.STRING)
+	private IndicatorType type;
 
-    private Double value;
-    private Double k;
-    private Double d;
+	private Double value;
+	private Double k;
+	private Double d;
 
-    @Enumerated(EnumType.STRING)
-    private Operator operator;
+	@Enumerated(EnumType.STRING)
+	private Operator operator;
 
-    @Enumerated(EnumType.STRING)
-    private Timeframe timeframe;
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = true)
+	private Timeframe timeframe;
 
-    @Enumerated(EnumType.STRING) // ✅ 추가
-    private ConditionPhase conditionPhase;
+	@Enumerated(EnumType.STRING) // ✅ 추가
+	private ConditionPhase conditionPhase;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "position_id")
-    private Position position;
-    
-    @Column(nullable = true)
-    private Boolean enabled = true;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "position_id")
+	private Position position;
+
+	@Column(nullable = true)
+	private Boolean enabled = true;
 }

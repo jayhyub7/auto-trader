@@ -19,9 +19,13 @@ export const IndicatorTypes = {
   RSI: "RSI",
   STOCH_RSI: "STOCH_RSI",
   VWBB: "VWBB",
+  STOP_HUNTING: "스탑헌팅",
+  FIVE_CANDLE: "5캔들",
+  TEST: "테스트",
 } as const;
-export type IndicatorType = keyof typeof IndicatorTypes;
 
+export const IndicatorOptions: IndicatorType[] = ["RSI", "STOCH_RSI", "VWBB"];
+export const StrategyOptions: IndicatorType[] = ["스탑헌팅", "5캔들", "TEST"];
 export const VWBBOperators = {
   UPPER: "상단_돌파",
   LOWER: "하단_돌파",
@@ -90,17 +94,25 @@ export const savePositions = async (
     exchange: p.exchange,
     direction: p.direction,
     enabled: p.enabled,
-    conditions: p.conditions.map((c) => ({
-      ...c,
-      type: c.type,
-      conditionPhase: c.conditionPhase,
-      operator: c.operator,
-      value: c.value,
-      k: c.k,
-      d: c.d,
-      timeframe: c.timeframe,
-      enabled: c.enabled,
-    })),
+    conditions: p.conditions.map((c) => {
+      const isIndicator = IndicatorOptions.includes(c.type);
+
+      const condition: any = {
+        type: c.type,
+        conditionPhase: c.conditionPhase,
+        operator: c.operator,
+        value: c.value,
+        k: c.k,
+        d: c.d,
+        enabled: c.enabled,
+      };
+
+      if (isIndicator) {
+        condition.timeframe = c.timeframe;
+      }
+
+      return condition;
+    }),
   }));
 
   const res = await api.post<IdMapping[]>("/positions", payload);

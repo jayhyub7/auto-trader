@@ -125,7 +125,7 @@ public class ExitTradeScheduler {
 					break;
 				}
 
-				boolean passed = evaluator.evaluate(cond, cache, exitLogManager);
+				boolean passed = evaluator.evaluate(cond, cache, position.getDirection(), exitLogManager);
 				if (!passed) {
 					isPass = false;
 					break;

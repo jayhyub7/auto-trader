@@ -12,6 +12,9 @@ public class EntryEvaluatorRegistry {
 		evaluators.put(IndicatorType.RSI, new RsiEvaluator());
 		evaluators.put(IndicatorType.STOCH_RSI, new StochRsiEvaluator());
 		evaluators.put(IndicatorType.VWBB, new VwbbEvaluator());
+		evaluators.put(IndicatorType.FIVE_CANDLE, new StopHuntingEvaluator());
+		evaluators.put(IndicatorType.STOP_HUNTING, new StopHuntingEvaluator());
+
 	}
 
 	public static EntryConditionEvaluator get(IndicatorType type) {

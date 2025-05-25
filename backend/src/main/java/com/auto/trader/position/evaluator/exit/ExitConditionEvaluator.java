@@ -3,17 +3,19 @@
 package com.auto.trader.position.evaluator.exit;
 
 import com.auto.trader.position.entity.IndicatorCondition;
+import com.auto.trader.position.enums.Direction;
 import com.auto.trader.position.enums.Operator;
 import com.auto.trader.scheduler.SchedulerLogManager;
 import com.auto.trader.trade.indicator.IndicatorCache;
 
 public interface ExitConditionEvaluator {
-	boolean evaluate(IndicatorCondition cond, IndicatorCache cache, SchedulerLogManager log);
+	boolean evaluate(IndicatorCondition cond, IndicatorCache cache, Direction direction, SchedulerLogManager log);
 }
 
 class ExitRsiEvaluator implements ExitConditionEvaluator {
 	@Override
-	public boolean evaluate(IndicatorCondition cond, IndicatorCache cache, SchedulerLogManager log) {
+	public boolean evaluate(IndicatorCondition cond, IndicatorCache cache, Direction direction,
+			SchedulerLogManager log) {
 		var rsiList = cache.getRsi();
 		if (rsiList.isEmpty()) {
 			log.log("⚠️ RSI 리스트 비어 있음");
@@ -29,7 +31,8 @@ class ExitRsiEvaluator implements ExitConditionEvaluator {
 
 class ExitStochRsiEvaluator implements ExitConditionEvaluator {
 	@Override
-	public boolean evaluate(IndicatorCondition cond, IndicatorCache cache, SchedulerLogManager log) {
+	public boolean evaluate(IndicatorCondition cond, IndicatorCache cache, Direction direction,
+			SchedulerLogManager log) {
 		var list = cache.getStochRsi();
 		if (list.isEmpty()) {
 			log.log("⚠️ StochRSI 리스트 비어 있음");
@@ -62,7 +65,8 @@ class ExitVwbbEvaluator implements ExitConditionEvaluator {
 	private static final double VWBB_TOLERANCE_RATIO = 0.00005; // 0.005%
 
 	@Override
-	public boolean evaluate(IndicatorCondition cond, IndicatorCache cache, SchedulerLogManager log) {
+	public boolean evaluate(IndicatorCondition cond, IndicatorCache cache, Direction direction,
+			SchedulerLogManager log) {
 		var vwbb = cache.getVwbb();
 		if (vwbb.getBasis().isEmpty()) {
 			log.log("⚠️ VWBB 기준선 없음");

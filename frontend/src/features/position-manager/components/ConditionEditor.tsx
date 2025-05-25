@@ -55,18 +55,21 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
   setPositions,
 }) => {
   useEffect(() => {
-
     if (selectedIndicator === "VWBB") {
-      const isVWBBOperator = Object.values(VWBBOperators).includes(currentCondition.operator as VWBBOperator);
+      const isVWBBOperator = Object.values(VWBBOperators).includes(
+        currentCondition.operator as VWBBOperator
+      );
       if (!isVWBBOperator) {
         setCurrentCondition((prev) => ({
           ...prev,
           type: IndicatorTypes.VWBB,
-          operator: VWBBOperators.UPPER, // "상단_돌파"
+          operator: VWBBOperators.UPPER,
         }));
       }
-
-    } else if ((selectedIndicator === "RSI" || selectedIndicator === "STOCH_RSI") && !currentCondition.operator) {
+    } else if (
+      (selectedIndicator === "RSI" || selectedIndicator === "STOCH_RSI") &&
+      !currentCondition.operator
+    ) {
       setCurrentCondition((prev) => ({
         ...prev,
         operator: "이하",
@@ -102,43 +105,55 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
       <div className="flex gap-2 items-center mb-4 text-white">
         <span>조건 유형</span>
         <button
-          className={`px-2 py-1 rounded ${selectedPhase === ConditionPhases.ENTRY ? "bg-blue-600" : "bg-gray-600"}`}
+          className={`px-2 py-1 rounded ${
+            selectedPhase === ConditionPhases.ENTRY
+              ? "bg-blue-600"
+              : "bg-gray-600"
+          }`}
           onClick={() => setSelectedPhase(ConditionPhases.ENTRY)}
         >
           진입조건
         </button>
         <button
-          className={`px-2 py-1 rounded ${selectedPhase === ConditionPhases.EXIT ? "bg-blue-600" : "bg-gray-600"}`}
+          className={`px-2 py-1 rounded ${
+            selectedPhase === ConditionPhases.EXIT
+              ? "bg-blue-600"
+              : "bg-gray-600"
+          }`}
           onClick={() => setSelectedPhase(ConditionPhases.EXIT)}
         >
           종료조건
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-4 text-white mb-4">
-        {Object.values(Timeframe).map((tf) => (
-          <label key={tf} className="flex items-center gap-1">
-            <input
-              type="radio"
-              name="timeframe"
-              value={tf}
-              checked={selectedTimeframe === tf}
-              onChange={() => setSelectedTimeframe(tf)}
-            />
-            {TIMEFRAME_LABELS[tf]}
-          </label>
-        ))}
-      </div>
+      {selectedIndicator && (
+        <div className="flex flex-wrap gap-4 text-white mb-4">
+          {Object.values(Timeframe).map((tf) => (
+            <label key={tf} className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="timeframe"
+                value={tf}
+                checked={selectedTimeframe === tf}
+                onChange={() => setSelectedTimeframe(tf)}
+              />
+              {TIMEFRAME_LABELS[tf]}
+            </label>
+          ))}
+        </div>
+      )}
 
       <select
         value={selectedIndicator}
         onChange={(e) => setSelectedIndicator(e.target.value)}
         className="mb-4 px-2 py-1 rounded bg-gray-700 text-gray-300"
       >
-        <option value="">-- 지표 선택 --</option>
+        <option value="">-- 지표/매매법 선택 --</option>
         <option value={IndicatorTypes.RSI}>RSI</option>
         <option value={IndicatorTypes.STOCH_RSI}>STOCH_RSI</option>
         <option value={IndicatorTypes.VWBB}>VWBB</option>
+        <option value="스탑헌팅">스탑헌팅</option>
+        <option value="베어트랩">베어트랩</option>
       </select>
 
       {selectedIndicator === IndicatorTypes.RSI && (

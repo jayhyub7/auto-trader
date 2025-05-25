@@ -282,4 +282,47 @@ public class IndicatorUtil {
 		ZonedDateTime zdt = Instant.ofEpochMilli(millis).atZone(ZoneId.of("Asia/Seoul"));
 		return zdt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 	}
+
+	public static CandlePattern detectCandlePattern(CandleDto current, CandleDto previous) {
+		double open = current.getOpen();
+		double close = current.getClose();
+		double high = current.getHigh();
+		double low = current.getLow();
+
+		double body = Math.abs(close - open);
+		double lowerWick = Math.min(open, close) - low;
+		double upperWick = high - Math.max(open, close);
+
+		// 🔹 Hammer: 긴 아랫꼬리 양봉
+		if (lowerWick > body * 2 && upperWick < body * 0.3 && close > open) {
+			return CandlePattern.HAMMER;
+		}
+
+		// 🔹 Shooting Star: 긴 윗꼬리 음봉
+		if (upperWick > body * 2 && lowerWick < body * 0.3 && close < open) {
+			return CandlePattern.SHOOTING_STAR;
+		}
+
+		// 🔹 Engulfing: 전 캔들을 완전히 덮는 양/음봉
+		if (previous != null) {
+			boolean bullishEngulfing = previous.getClose() < previous.getOpen() && // 이전 음봉
+					close > open && // 현재 양봉
+					close > previous.getOpen() && open < previous.getClose();
+
+			if (bullishEngulfing) {
+				return CandlePattern.BULLISH_ENGULFING;
+			}
+
+			boolean bearishEngulfing = previous.getClose() > previous.getOpen() && // 이전 양봉
+					close < open && // 현재 음봉
+					close < previous.getOpen() && open > previous.getClose();
+
+			if (bearishEngulfing) {
+				return CandlePattern.BEARISH_ENGULFING;
+			}
+		}
+
+		return CandlePattern.NONE;
+	}
+
 }

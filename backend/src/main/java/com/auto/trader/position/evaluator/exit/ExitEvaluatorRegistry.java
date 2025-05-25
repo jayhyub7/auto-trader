@@ -11,6 +11,8 @@ public class ExitEvaluatorRegistry {
 		evaluators.put(IndicatorType.RSI, new ExitRsiEvaluator());
 		evaluators.put(IndicatorType.STOCH_RSI, new ExitStochRsiEvaluator());
 		evaluators.put(IndicatorType.VWBB, new ExitVwbbEvaluator());
+		evaluators.put(IndicatorType.FIVE_CANDLE, new ExitFiveCandleEvaluator());
+		evaluators.put(IndicatorType.STOP_HUNTING, new ExitStopHuntingEvaluator());
 	}
 
 	public static ExitConditionEvaluator get(IndicatorType type) {

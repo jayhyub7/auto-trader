@@ -1,9 +1,13 @@
 // 📄 handleAddCondition.tsx
 
-import { IndicatorCondition, IndicatorTypes, ConditionPhases, Directions } from "@/features/position-manager/services/PositionManagerService";
+import {
+  IndicatorCondition,
+  IndicatorTypes,
+  ConditionPhases,
+  Directions,
+} from "@/features/position-manager/services/PositionManagerService";
 import { TIMEFRAME_LABELS } from "@/constants/TimeFrame";
 import { toast } from "react-toastify";
-
 
 interface Params {
   selectedIndicator: string;
@@ -17,6 +21,7 @@ interface Params {
   setSelectedIndicator: (v: string) => void;
   setShowConditionBox: (v: boolean) => void;
   selectedPhase: "ENTRY" | "EXIT";
+  mode: "indicator" | "strategy";
 }
 
 export const handleAddCondition = ({
@@ -31,18 +36,23 @@ export const handleAddCondition = ({
   setSelectedIndicator,
   setShowConditionBox,
   selectedPhase,
+  mode,
 }: Params) => {
   if (!selectedIndicator || !activePositionId) {
-    toast.error("지표를 선택해주세요.");
+    toast.error("조건을 선택해주세요.");
     return;
   }
 
   const targetPosition = positions.find((p) => p.id === activePositionId);
   if (!targetPosition) return;
 
-  const existingDirection = targetPosition.conditions.find((c: any) => c.direction === Directions.LONG)
+  const existingDirection = targetPosition.conditions.find(
+    (c: any) => c.direction === Directions.LONG
+  )
     ? Directions.LONG
-    : targetPosition.conditions.find((c: any) => c.direction === Directions.SHORT)
+    : targetPosition.conditions.find(
+        (c: any) => c.direction === Directions.SHORT
+      )
     ? Directions.SHORT
     : null;
 
@@ -59,10 +69,39 @@ export const handleAddCondition = ({
   );
 
   if (isDuplicate) {
-    const phaseLabel = selectedPhase === ConditionPhases.ENTRY ? "진입조건" : "종료조건";
-    toast.error(`${TIMEFRAME_LABELS[selectedTimeframe]} 분봉의 ${selectedIndicator} (${phaseLabel})은 이미 존재합니다.`);
+    const phaseLabel =
+      selectedPhase === ConditionPhases.ENTRY ? "진입조건" : "종료조건";
+    toast.error(
+      `${TIMEFRAME_LABELS[selectedTimeframe]} 분봉의 ${selectedIndicator} (${phaseLabel})은 이미 존재합니다.`
+    );
     return;
   }
+
+  // ────────────── 매매법 모드 저장 ──────────────
+  if (mode === "strategy") {
+    const newCondition: IndicatorCondition = {
+      type: selectedIndicator,
+      timeframe: selectedTimeframe,
+      direction: selectedDirection,
+      conditionPhase: selectedPhase,
+      enabled: true,
+    };
+
+    setPositions(
+      positions.map((p) =>
+        p.id === activePositionId
+          ? { ...p, conditions: [...p.conditions, newCondition] }
+          : p
+      )
+    );
+
+    setCurrentCondition({});
+    setSelectedIndicator("");
+    setShowConditionBox(false);
+    return;
+  }
+
+  // ────────────── 지표 모드 저장 ──────────────
 
   // 유효성 검사
   if (selectedIndicator === IndicatorTypes.RSI) {
@@ -97,6 +136,7 @@ export const handleAddCondition = ({
 
   const conditionWithTimeframe = {
     ...currentCondition,
+    type: selectedIndicator,
     timeframe: selectedTimeframe,
     direction: selectedDirection,
     conditionPhase: selectedPhase,
