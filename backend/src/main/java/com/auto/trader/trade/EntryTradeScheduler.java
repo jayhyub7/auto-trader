@@ -17,7 +17,6 @@ import com.auto.trader.position.entity.Position;
 import com.auto.trader.position.entity.PositionOpen;
 import com.auto.trader.position.enums.AmountType;
 import com.auto.trader.position.enums.Direction;
-import com.auto.trader.position.enums.PositionOpenStatus;
 import com.auto.trader.position.evaluator.entry.EntryConditionEvaluator;
 import com.auto.trader.position.evaluator.entry.EntryEvaluatorRegistry;
 import com.auto.trader.position.repository.PositionOpenRepository;
@@ -148,6 +147,16 @@ public class EntryTradeScheduler {
 					quantity = notional / observedPrice;
 				}
 
+				if (!position.isSimulation()) {
+					if (quantity <= 0.0) {
+						positionOpen.setErrorFlag(true);
+						positionOpen.setErrorMessage("잔고 부족으로 진입 실패");
+						positionOpenRepository.save(positionOpen);
+						entryLogManager.log("❌ 잔고 부족으로 진입 생략: position={}", positionOpen.getId());
+						continue;
+					}
+				}
+
 				double slPercent = positionOpen.getStopLoss();
 				Double tpPercent = positionOpen.getTakeProfit();
 				Double slPrice = (slPercent > 0) ? calcStopLossPrice(observedPrice, slPercent / 100.0, direction)
@@ -159,7 +168,7 @@ public class EntryTradeScheduler {
 				long start = System.currentTimeMillis();
 
 				OrderResult result;
-				if (positionOpen.getStatus() == PositionOpenStatus.RUNNING) {
+				if (position.isSimulation()) {
 					result = exchangeService.placeMarketOrder(apiKey, symbol, quantity, direction, slPrice, tpPrice);
 				} else {
 					result = exchangeService.createSimulatedOrder(symbol, quantity, observedPrice);

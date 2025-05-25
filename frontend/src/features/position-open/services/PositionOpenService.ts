@@ -20,7 +20,7 @@ export type AmountType = keyof typeof AmountTypes;
 export const PositionOpenStatuses = {
   IDLE: "IDLE",
   RUNNING: "RUNNING",
-  SIMULATING: "SIMULATING",
+  PENDING: "PENDING",
   CANCELLED: "CANCELLED",
 } as const;
 export type PositionOpenStatus = keyof typeof PositionOpenStatuses;
@@ -44,7 +44,8 @@ export interface PositionOpenDto {
   amount: number;
   stopLoss: number;
   takeProfit?: number;
-  leverage: number; // ✅ 추가됨
+  leverage: number;
+  simulatedAvailable?: number;
 }
 
 export interface Position {
@@ -53,6 +54,7 @@ export interface Position {
   exchange: Exchange;
   conditions: IndicatorCondition[];
   enabled: boolean;
+  simulating: boolean;
   open?: PositionOpenDto | null;
 }
 
@@ -61,9 +63,11 @@ export interface PositionOpenPayload {
   positionId: number;
   amount: number;
   amountType: AmountType;
+  simulatedAvailable?: number;
   stopLoss: number;
   takeProfit?: number;
-  leverage: number; // ✅ 추가됨
+  leverage: number;
+  simulating: boolean;
   status: PositionOpenStatus;
 }
 

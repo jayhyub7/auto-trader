@@ -30,6 +30,7 @@ public class PositionDto {
 	private List<IndicatorConditionDto> conditions;
 	private Long userId;
 	private PositionOpenDto open;
+	private boolean simulating;
 
 	@Getter
 	@Setter
@@ -61,5 +62,6 @@ public class PositionDto {
 		private double amount;
 		private double stopLoss;
 		private Double takeProfit;
+		private Double simulatedAvailable;
 	}
 }

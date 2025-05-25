@@ -9,6 +9,7 @@ import com.auto.trader.domain.User;
 import com.auto.trader.position.enums.Direction;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -31,29 +32,36 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Position extends BaseEntity  {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Position extends BaseEntity {
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    private String title;
+	private String title;
 
-    @Enumerated(EnumType.STRING)
-    private Exchange exchange;
-    
-    @Enumerated(EnumType.STRING)
-    private Direction direction; 
+	@Enumerated(EnumType.STRING)
+	private Exchange exchange;
 
-    private boolean enabled;
+	@Enumerated(EnumType.STRING)
+	private Direction direction;
 
-    @OneToMany(mappedBy = "position", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<IndicatorCondition> conditions = new ArrayList<>();
-    
-    @OneToMany(mappedBy = "position", fetch = FetchType.LAZY)
-    private List<PositionOpen> positionOpenList;
-    
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+	private boolean enabled;
+
+	@Builder.Default
+	@Column(name = "is_simulating", nullable = true)
+	private boolean simulating = true;
+
+	@OneToMany(mappedBy = "position", cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<IndicatorCondition> conditions = new ArrayList<>();
+
+	@OneToMany(mappedBy = "position", fetch = FetchType.LAZY)
+	private List<PositionOpen> positionOpenList;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "user_id", nullable = false)
+	private User user;
+
+	public boolean isSimulation() {
+		return this.simulating;
+	}
 }
-

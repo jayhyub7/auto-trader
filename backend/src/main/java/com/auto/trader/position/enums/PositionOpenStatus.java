@@ -4,15 +4,15 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum PositionOpenStatus {
-    IDLE, RUNNING, SIMULATING, CANCELLED;
+	IDLE, PENDING, RUNNING, CANCELLED;
 
-    @JsonValue
-    public String toJson() {
-        return name();
-    }
+	@JsonValue
+	public String toJson() {
+		return name();
+	}
 
-    @JsonCreator
-    public static PositionOpenStatus fromJson(String value) {
-        return PositionOpenStatus.valueOf(value.toUpperCase());
-    }
+	@JsonCreator
+	public static PositionOpenStatus fromJson(String value) {
+		return PositionOpenStatus.valueOf(value.toUpperCase());
+	}
 }

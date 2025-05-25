@@ -25,59 +25,47 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class PositionOpenController {
 
-    private final PositionOpenService positionOpenService;
-    private final UserService userService;
+	private final PositionOpenService positionOpenService;
+	private final UserService userService;
 
-    @PostMapping
-    public ResponseEntity<PositionOpenRequestDto> save(
-            @AuthenticationPrincipal OAuth2User principal,
-            @RequestBody PositionOpenRequestDto dto
-    ) {
-        String email = (String) principal.getAttributes().get("email");
-        User user = userService.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("사용자 없음"));
+	@PostMapping
+	public ResponseEntity<PositionOpenRequestDto> save(@AuthenticationPrincipal OAuth2User principal,
+			@RequestBody PositionOpenRequestDto dto) {
+		String email = (String) principal.getAttributes().get("email");
+		User user = userService.findByEmail(email).orElseThrow(() -> new RuntimeException("사용자 없음"));
 
-        PositionOpenRequestDto saved = positionOpenService.save(dto, user);
-        return ResponseEntity.ok(saved); // ✅ 생성된 ID 포함 응답
-    }
+		PositionOpenRequestDto saved = positionOpenService.save(dto, user);
+		return ResponseEntity.ok(saved); // ✅ 생성된 ID 포함 응답
+	}
 
-    @PatchMapping("/{id}")
-    public ResponseEntity<Void> update(
-            @AuthenticationPrincipal OAuth2User principal,
-            @PathVariable("id") Long id,
-            @RequestBody PositionOpenRequestDto dto
-    ) {
-        String email = (String) principal.getAttributes().get("email");
-        User user = userService.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("사용자 없음"));
-        dto.setId(id);
-        positionOpenService.update(dto, user);
-        return ResponseEntity.noContent().build();
-    }
-    
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(
-            @AuthenticationPrincipal OAuth2User principal,
-            @PathVariable("id") Long id
-    ) {
-    	System.out.println("delete");
-        String email = (String) principal.getAttributes().get("email");
-        User user = userService.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("사용자 없음"));
+	@PatchMapping("/{id}")
+	public ResponseEntity<Void> update(@AuthenticationPrincipal OAuth2User principal, @PathVariable("id") Long id,
+			@RequestBody PositionOpenRequestDto dto) {
+		String email = (String) principal.getAttributes().get("email");
+		User user = userService.findByEmail(email).orElseThrow(() -> new RuntimeException("사용자 없음"));
+		dto.setId(id);
+		positionOpenService.update(dto, user);
+		return ResponseEntity.noContent().build();
+	}
 
-        PositionOpen open = positionOpenService.findById(id)
-                .orElseThrow(() -> new RuntimeException("포지션 오픈 정보 없음"));
+	@DeleteMapping("/{id}")
+	public ResponseEntity<Void> delete(@AuthenticationPrincipal OAuth2User principal, @PathVariable("id") Long id) {
+		System.out.println("delete");
+		String email = (String) principal.getAttributes().get("email");
+		User user = userService.findByEmail(email).orElseThrow(() -> new RuntimeException("사용자 없음"));
 
-        if (!open.getPosition().getUser().getId().equals(user.getId())) {
-            throw new SecurityException("삭제 권한 없음");
-        }
+		PositionOpen open = positionOpenService.findById(id).orElseThrow(() -> new RuntimeException("포지션 오픈 정보 없음"));
 
-        if (open.getStatus() == PositionOpenStatus.RUNNING || open.getStatus() == PositionOpenStatus.SIMULATING) {
-            throw new IllegalStateException("실행 또는 시뮬레이션 상태에서는 삭제할 수 없습니다.");
-        }
+		if (!open.getPosition().getUser().getId().equals(user.getId())) {
+			throw new SecurityException("삭제 권한 없음");
+		}
 
-        positionOpenService.deleteById(id, user);
-        return ResponseEntity.noContent().build();
-    }
+		if (open.getStatus() == PositionOpenStatus.RUNNING || open.getStatus() == PositionOpenStatus.PENDING) {
+			throw new IllegalStateException("실행 또는 대기 상태에서는 삭제할 수 없습니다.");
+		}
+
+		positionOpenService.deleteById(id, user);
+		return ResponseEntity.noContent().build();
+	}
 
 }

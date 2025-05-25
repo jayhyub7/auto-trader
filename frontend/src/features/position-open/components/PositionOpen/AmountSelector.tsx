@@ -11,13 +11,18 @@ interface AmountSelectorProps {
 
 const quickPercents = [25, 50, 75, 100];
 
-const AmountSelector: React.FC<AmountSelectorProps> = ({ maxAmount, onChange, onPercentChange, initialPercent }) => {
+const AmountSelector: React.FC<AmountSelectorProps> = ({
+  maxAmount,
+  onChange,
+  onPercentChange,
+  initialPercent,
+}) => {
   const [percent, setPercent] = useState(initialPercent ?? 0);
   const [amount, setAmount] = useState(0);
 
   useEffect(() => {
-    
     const calculated = +(maxAmount * (percent / 100)).toFixed(4);
+    setPercent(initialPercent ?? 0);
     setAmount(calculated);
     onChange(calculated);
     if (onPercentChange) {
@@ -29,7 +34,9 @@ const AmountSelector: React.FC<AmountSelectorProps> = ({ maxAmount, onChange, on
     const parsed = parseFloat(value);
     if (!isNaN(parsed)) {
       if (parsed > maxAmount) {
-        toast.error(`사용 가능 금액(${maxAmount.toFixed(2)} USDT)을 초과할 수 없습니다.`);
+        toast.error(
+          `사용 가능 금액(${maxAmount.toFixed(2)} USDT)을 초과할 수 없습니다.`
+        );
         const capped = +maxAmount.toFixed(4);
         setAmount(capped);
         setPercent(100);

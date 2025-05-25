@@ -45,6 +45,7 @@ public class PositionOpenService {
 					.stopLoss(open.getStopLoss())
 					.takeProfit(open.getTakeProfit())
 					.leverage(open.getLeverage())
+					.simulatedAvailable(open.getSimulatedAvailable())
 					.build();
 			}
 
@@ -55,6 +56,7 @@ public class PositionOpenService {
 				.exchange(position.getExchange())
 				.enabled(position.isEnabled())
 				.direction(position.getDirection())
+				.simulating(position.isSimulating())
 				.userId(position.getUser().getId())
 				.open(openDto)
 				.conditions(position.getConditions().stream().map(this::toConditionDto).collect(Collectors.toList()))
@@ -71,6 +73,8 @@ public class PositionOpenService {
 			throw new RuntimeException("권한 없음");
 		}
 
+		position.setSimulating(dto.isSimulating());
+
 		PositionOpen open = PositionOpen
 			.builder()
 			.position(position)
@@ -80,6 +84,7 @@ public class PositionOpenService {
 			.takeProfit(dto.getTakeProfit())
 			.status(PositionOpenStatus.valueOf(dto.getStatus().toUpperCase()))
 			.leverage(dto.getLeverage())
+			.simulatedAvailable(dto.getSimulatedAvailable())
 			.build();
 
 		PositionOpen saved = positionOpenRepository.save(open);
@@ -96,12 +101,16 @@ public class PositionOpenService {
 			throw new RuntimeException("권한 없음");
 		}
 
+		Position position = open.getPosition();
+		position.setSimulating(dto.isSimulating());
+
 		open.setAmount(dto.getAmount());
 		open.setAmountType(AmountType.valueOf(dto.getAmountType().toUpperCase()));
 		open.setStopLoss(dto.getStopLoss());
 		open.setTakeProfit(dto.getTakeProfit());
 		open.setStatus(PositionOpenStatus.valueOf(dto.getStatus().toUpperCase()));
 		open.setLeverage(dto.getLeverage());
+		open.setSimulatedAvailable(dto.getSimulatedAvailable());
 
 		positionOpenRepository.save(open);
 	}
@@ -129,8 +138,7 @@ public class PositionOpenService {
 			List<PositionOpen> filteredOpens = p
 				.getPositionOpenList()
 				.stream()
-				.filter(o -> o.getStatus() == PositionOpenStatus.RUNNING
-						|| o.getStatus() == PositionOpenStatus.SIMULATING)
+				.filter(o -> o.getStatus() == PositionOpenStatus.RUNNING || o.getStatus() == PositionOpenStatus.PENDING)
 				.toList();
 
 			List<IndicatorCondition> filteredConditions = p
@@ -146,6 +154,7 @@ public class PositionOpenService {
 				.exchange(p.getExchange())
 				.direction(p.getDirection())
 				.enabled(p.isEnabled())
+				.simulating(p.isSimulating())
 				.user(p.getUser())
 				.positionOpenList(filteredOpens)
 				.conditions(filteredConditions)
@@ -164,8 +173,8 @@ public class PositionOpenService {
 			List<PositionOpen> filteredOpens = p
 				.getPositionOpenList()
 				.stream()
-				.filter(o -> !o.isExecuted() && (o.getStatus() == PositionOpenStatus.RUNNING
-						|| o.getStatus() == PositionOpenStatus.SIMULATING))
+				.filter(o -> !o.isExecuted()
+						&& (o.getStatus() == PositionOpenStatus.RUNNING || o.getStatus() == PositionOpenStatus.PENDING))
 				.toList();
 
 			List<IndicatorCondition> filteredConditions = p
@@ -182,6 +191,7 @@ public class PositionOpenService {
 				.exchange(p.getExchange())
 				.direction(p.getDirection())
 				.enabled(p.isEnabled())
+				.simulating(p.isSimulating())
 				.user(p.getUser())
 				.positionOpenList(filteredOpens)
 				.conditions(filteredConditions)

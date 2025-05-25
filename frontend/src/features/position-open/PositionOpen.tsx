@@ -86,7 +86,7 @@ const PositionOpen = () => {
       toast.success("저장되었습니다.");
     } catch (err) {
       console.error("상태 업데이트 실패", err);
-      toast.success("상태 업데이트에 실패했습니다.");
+      toast.error("상태 업데이트에 실패했습니다.");
     }
   };
 

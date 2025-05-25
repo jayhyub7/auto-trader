@@ -1,3 +1,5 @@
+// PositionCard.tsx
+
 import {
   PositionOpenStatuses,
   AmountTypes,
@@ -40,19 +42,26 @@ const PositionCard = ({
   );
   const [amount, setAmount] = useState(openData?.amount ?? 0);
   const [percent, setPercent] = useState(0);
-  const [leverage, setLeverage] = useState(openData?.leverage ?? 10); // ✅ 추가
+  const [leverage, setLeverage] = useState(openData?.leverage ?? 10);
+  const [isSimulating, setIsSimulating] = useState(position.simulating ?? true);
+  const [simulatedAvailable, setSimulatedAvailable] = useState(available);
+
+  const displayedAvailable = isSimulating ? simulatedAvailable : available;
 
   useEffect(() => {
     if (openData) {
       setTakeProfit(openData.takeProfit ?? 0);
       setStopLoss(openData.stopLoss);
       setAmount(openData.amount);
+      setLeverage(openData.leverage ?? 10);
       setAmountType(openData.amountType ?? AmountTypes.FIXED);
-      setLeverage(openData.leverage ?? 10); // ✅ 초기화
-      if (openData.amountType === AmountTypes.PERCENT) {
+
+      if ((openData.amountType ?? AmountTypes.FIXED) === AmountTypes.PERCENT) {
         setPercent(openData.amount);
-      } else {
-        setAmountType(AmountTypes.FIXED);
+      }
+
+      if (openData.simulatedAvailable != null) {
+        setSimulatedAvailable(openData.simulatedAvailable);
       }
     }
   }, [openData]);
@@ -62,30 +71,28 @@ const PositionCard = ({
     status === PositionOpenStatuses.IDLE ||
     status === PositionOpenStatuses.CANCELLED;
   const isRunning = status === PositionOpenStatuses.RUNNING;
-  const isSimulating = status === PositionOpenStatuses.SIMULATING;
+  const isPending = status === PositionOpenStatuses.PENDING;
 
-  const handleClick = (nextStatus: PositionOpenStatus) => {
+  const handleClick = () => {
     const entryConditions = position.conditions.filter(
       (c) => c.conditionPhase === "ENTRY"
     );
 
-    if (nextStatus !== PositionOpenStatuses.CANCELLED) {
-      if (entryConditions.length === 0) {
-        toast.error("진입 조건이 없습니다. 조건을 먼저 설정해주세요.");
-        return;
-      }
-      if (!stopLoss || stopLoss <= 0) {
-        toast.error("Stop Loss는 필수입니다. 0보다 커야 합니다.");
-        return;
-      }
-      if (amount < 10) {
-        toast.error("금액은 최소 10 이상이어야 합니다.");
-        return;
-      }
-      if (!leverage || leverage <= 0) {
-        toast.error("레버리지는 1 이상이어야 합니다.");
-        return;
-      }
+    if (entryConditions.length === 0) {
+      toast.error("진입 조건이 없습니다. 조건을 먼저 설정해주세요.");
+      return;
+    }
+    if (!stopLoss || stopLoss <= 0) {
+      toast.error("Stop Loss는 필수입니다. 0보다 커야 합니다.");
+      return;
+    }
+    if (amount < 10) {
+      toast.error("금액은 최소 10 이상이어야 합니다.");
+      return;
+    }
+    if (!leverage || leverage <= 0) {
+      toast.error("레버리지는 1 이상이어야 합니다.");
+      return;
     }
 
     const payload: Omit<PositionOpenPayload, "status"> = {
@@ -95,14 +102,20 @@ const PositionCard = ({
       amountType: amountType ?? AmountTypes.FIXED,
       stopLoss,
       takeProfit,
-      leverage, // ✅ 포함
+      leverage,
+      simulating: isSimulating,
+      simulatedAvailable: isSimulating ? simulatedAvailable : undefined,
     };
-    onUpdateStatus(openId, nextStatus, payload);
+
+    onUpdateStatus(openId, PositionOpenStatuses.PENDING, payload);
   };
 
   return (
     <div className="border p-4 rounded-xl shadow-sm space-y-2">
       <div className="flex justify-between items-center mb-2">
+        <div className="text-sm text-yellow-400 font-semibold mb-1">
+          {position.exchange?.toUpperCase()}
+        </div>
         <div className="text-lg font-semibold flex items-center gap-4">
           <span>{position.title}</span>
           {position.direction === "LONG" && (
@@ -191,15 +204,15 @@ const PositionCard = ({
                 value={amount}
                 onChange={(e) => {
                   const value = Number(e.target.value);
-                  if (value <= available) {
+                  if (value <= displayedAvailable) {
                     setAmount(value);
                   } else {
                     toast.error(
-                      `사용 가능 금액(${available.toFixed(
+                      `사용 가능 금액(${displayedAvailable.toFixed(
                         2
                       )} USDT)을 초과할 수 없습니다.`
                     );
-                    setAmount(available);
+                    setAmount(displayedAvailable);
                   }
                 }}
                 className="w-full px-2 py-1 rounded bg-gray-700 border border-gray-600"
@@ -208,29 +221,50 @@ const PositionCard = ({
             </div>
           ) : (
             <AmountSelector
-              maxAmount={available}
+              maxAmount={displayedAvailable}
               onChange={(val) => setAmount(val)}
               onPercentChange={(p) => setPercent(p)}
-              initialPercent={percent}
+              initialPercent={
+                openData?.amountType === AmountTypes.PERCENT
+                  ? openData.amount
+                  : 0
+              }
             />
           )}
         </div>
 
         <div className="col-span-2 text-sm text-gray-400">
-          잔고:{" "}
-          {balance.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}{" "}
-          USDT
+          잔고: {balance.toFixed(2)} USDT
           <br />
-          사용 가능:{" "}
-          {available.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}{" "}
-          USDT
+          {isSimulating ? (
+            <div className="mt-1">
+              사용 가능:{" "}
+              <input
+                type="number"
+                value={simulatedAvailable}
+                onChange={(e) =>
+                  setSimulatedAvailable(Math.max(0, Number(e.target.value)))
+                }
+                className="px-2 py-1 w-32 rounded bg-gray-700 border border-gray-600 text-white text-sm"
+              />{" "}
+              USDT
+            </div>
+          ) : (
+            <>사용 가능: {available.toFixed(2)} USDT</>
+          )}
         </div>
+      </div>
+
+      <div className="flex gap-3 items-center mb-2">
+        <input
+          type="checkbox"
+          id={`sim-${position.id}`}
+          checked={isSimulating}
+          onChange={(e) => setIsSimulating(e.target.checked)}
+        />
+        <label htmlFor={`sim-${position.id}`} className="text-sm text-gray-200">
+          시뮬레이션 모드
+        </label>
       </div>
 
       <div className="flex gap-3 items-center">
@@ -238,23 +272,27 @@ const PositionCard = ({
 
         <button
           disabled={!isStartable}
-          onClick={() => handleClick(PositionOpenStatuses.RUNNING)}
+          onClick={handleClick}
           className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded text-sm"
         >
           실행
         </button>
 
         <button
-          disabled={!isStartable}
-          onClick={() => handleClick(PositionOpenStatuses.SIMULATING)}
-          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded text-sm"
-        >
-          시뮬레이션
-        </button>
-
-        <button
-          disabled={!(isRunning || isSimulating)}
-          onClick={() => handleClick(PositionOpenStatuses.CANCELLED)}
+          disabled={!(isRunning || isPending)}
+          onClick={() =>
+            onUpdateStatus(openId, PositionOpenStatuses.CANCELLED, {
+              id: openId,
+              positionId: position.id,
+              amount,
+              amountType,
+              stopLoss,
+              takeProfit,
+              leverage,
+              simulating: isSimulating,
+              simulatedAvailable: isSimulating ? simulatedAvailable : undefined,
+            })
+          }
           className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded text-sm"
         >
           취소

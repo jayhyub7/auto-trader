@@ -45,6 +45,9 @@ public class PositionOpen extends BaseEntity {
 	@Column(name = "amount_type", nullable = false)
 	private AmountType amountType;
 
+	@Column(name = "simulated_available")
+	private Double simulatedAvailable;
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private PositionOpenStatus status;
@@ -67,11 +70,41 @@ public class PositionOpen extends BaseEntity {
 	@Column(name = "current_order_id")
 	private String currentOrderId;
 
+	@Column(name = "error_flag")
+	private boolean errorFlag = false;
+
+	@Column(name = "error_message")
+	private String errorMessage;
+
 	public boolean isValidStopLoss() {
 		return stopLoss > 0 && !Double.isNaN(stopLoss) && !Double.isInfinite(stopLoss);
 	}
 
 	public boolean isValidTakeProfit() {
 		return takeProfit != null && takeProfit > 0 && !takeProfit.isNaN() && !takeProfit.isInfinite();
+	}
+
+	public boolean isPending() {
+		return this.status == PositionOpenStatus.PENDING;
+	}
+
+	public boolean isRunning() {
+		return this.status == PositionOpenStatus.RUNNING;
+	}
+
+	public boolean isCancelled() {
+		return this.status == PositionOpenStatus.CANCELLED;
+	}
+
+	public boolean isIdle() {
+		return this.status == PositionOpenStatus.IDLE;
+	}
+
+	public boolean isExecuted() {
+		return this.executed;
+	}
+
+	public boolean hasError() {
+		return this.errorFlag;
 	}
 }
