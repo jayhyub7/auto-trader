@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ExitFiveCandleEvaluator implements ExitConditionEvaluator {
 
 	@Override
-	public boolean evaluate(IndicatorCondition cond, IndicatorCache _cache, Direction direction,
+	public boolean evaluate(IndicatorCondition cond, IndicatorCache _cache, Direction direction, double entryPrice,
 			SchedulerLogManager logManager) {
 		String key = "BTCUSDT_15m";
 

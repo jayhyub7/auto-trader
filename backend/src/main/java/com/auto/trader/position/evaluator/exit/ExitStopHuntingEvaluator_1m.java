@@ -22,7 +22,7 @@ public class ExitStopHuntingEvaluator_1m implements ExitConditionEvaluator {
 	private static final double STOCH_RSI_MULTIPLIER = 1.3;
 
 	@Override
-	public boolean evaluate(IndicatorCondition cond, IndicatorCache _cache, Direction direction,
+	public boolean evaluate(IndicatorCondition cond, IndicatorCache _cache, Direction direction, double entryPrice,
 			SchedulerLogManager logManager) {
 		String key = "BTCUSDT_1m";
 
@@ -36,7 +36,6 @@ public class ExitStopHuntingEvaluator_1m implements ExitConditionEvaluator {
 		CandleDto wickCandle = candles.get(candles.size() - 2);
 		CandleDto current = candles.get(candles.size() - 1);
 
-		double entryPrice = wickCandle.getOpen();
 		double profitTarget = direction == Direction.LONG ? entryPrice + entryPrice * PROFIT_RATIO
 				: entryPrice - entryPrice * PROFIT_RATIO;
 

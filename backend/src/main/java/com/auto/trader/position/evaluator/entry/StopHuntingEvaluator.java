@@ -12,10 +12,10 @@ import com.auto.trader.trade.indicator.IndicatorUtil.DualIndicatorPoint;
 
 public class StopHuntingEvaluator implements EntryConditionEvaluator {
 
-	private static final int MIN_CANDLES = 10;
+	private static final int MIN_CANDLES = 50;
 	private static final double MAX_WICK_RATIO = 4.0; // wick이 body의 4배 초과면 제외
 	private static final int STOCH_LOOKBACK = 500;
-	private static final double STOCH_BOUNCE_THRESHOLD_MULTIPLIER = 1.3;
+	private static final double STOCH_BOUNCE_THRESHOLD_MULTIPLIER = 2;
 
 	@Override
 	public boolean evaluate(IndicatorCondition cond, IndicatorCache _cache, Direction direction,
@@ -47,7 +47,7 @@ public class StopHuntingEvaluator implements EntryConditionEvaluator {
 			.min()
 			.orElse(Double.NaN);
 
-		log.log("📊 최근 고점: {}, 저점: {}", recentHigh, recentLow);
+		log.log("📊 최근 고점: {}, 저점: {}", (int) recentHigh, (int) recentLow);
 
 		boolean stopTriggered = false;
 		if (direction == Direction.SHORT && wickCandle.getHigh() >= recentHigh) {
@@ -71,11 +71,11 @@ public class StopHuntingEvaluator implements EntryConditionEvaluator {
 		double lowerWick = Math.min(wickCandle.getClose(), wickCandle.getOpen()) - wickCandle.getLow();
 
 		if (direction == Direction.SHORT && upperWick > wickBody * MAX_WICK_RATIO) {
-			log.log("❌ 윗꼬리 비율 과다 → 무시 (upperWick: {}, body: {})", upperWick, wickBody);
+			log.log("❌ 윗꼬리 비율 과다 → 무시 (upperWick: {}, body: {})", (int) upperWick, (int) wickBody);
 			return false;
 		}
 		if (direction == Direction.LONG && lowerWick > wickBody * MAX_WICK_RATIO) {
-			log.log("❌ 아랫꼬리 비율 과다 → 무시 (lowerWick: {}, body: {})", lowerWick, wickBody);
+			log.log("❌ 아랫꼬리 비율 과다 → 무시 (lowerWick: {}, body: {})", (int) lowerWick, (int) wickBody);
 			return false;
 		}
 

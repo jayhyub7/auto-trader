@@ -190,23 +190,26 @@ public class EntryTradeScheduler {
 				long start = System.currentTimeMillis();
 
 				OrderResult result;
-				if (position.isSimulation()) {
+				if (!position.isSimulation()) {
 					result = exchangeService.placeMarketOrder(apiKey, symbol, quantity, direction, slPrice, tpPrice);
 				} else {
 					result = exchangeService.createSimulatedOrder(symbol, quantity, observedPrice);
 				}
+				positionOpen.setExecuted(false);
+				positionOpen.setExecutedAt(LocalDateTime.now());
+				positionOpen.setStatus(PositionOpenStatus.RUNNING);
 
 				long end = System.currentTimeMillis();
 				boolean slRegistered = false;
 				boolean tpRegistered = false;
 
-				if (slPercent > 0) {
+				if (!position.isSimulation() && slPercent > 0) {
 					slPrice = calcStopLossPrice(result.getPrice(), slPercent / 100.0, direction);
 					slRegistered = exchangeService.placeStopLossOrder(apiKey, symbol, quantity, slPrice, direction);
 					entryLogManager.log(slRegistered ? "✅ SL 등록 성공" : "❌ SL 등록 실패");
 				}
 
-				if (tpPercent != null && tpPercent > 0) {
+				if (!position.isSimulation() && tpPercent != null && tpPercent > 0) {
 					tpPrice = calcTakeProfitPrice(result.getPrice(), tpPercent / 100.0, direction);
 					tpRegistered = exchangeService.placeTakeProfitOrder(apiKey, symbol, quantity, tpPrice, direction);
 					entryLogManager.log(tpRegistered ? "✅ TP 등록 성공" : "❌ TP 등록 실패");
@@ -218,9 +221,7 @@ public class EntryTradeScheduler {
 				entryLogManager.log("✅ 시장가 주문 체결 완료. 주문ID: {}", result.getOrderId());
 				entryLogManager.log("💰 체결 가격: {} (예상가: {})", result.getPrice(), observedPrice);
 				entryLogManager.log("⏱️ 주문 실행 소요 시간: {}초", result.getExecutionTimeSeconds());
-				positionOpen.setExecuted(false);
-				positionOpen.setExecutedAt(LocalDateTime.now());
-				positionOpen.setStatus(PositionOpenStatus.RUNNING);
+
 				executedOrderService
 					.saveExecutedOrderWithIndicators(result, positionOpen, position.getExchange().name(), symbol,
 							observedPrice);

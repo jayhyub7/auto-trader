@@ -128,8 +128,8 @@ public class ExitTradeScheduler {
 					isPass = false;
 					break;
 				}
-
-				boolean passed = evaluator.evaluate(cond, cache, position.getDirection(), exitLogManager);
+				double entryPrice = executed.getExecutedPrice();
+				boolean passed = evaluator.evaluate(cond, cache, position.getDirection(), entryPrice, exitLogManager);
 				if (!passed) {
 					isPass = false;
 					break;
@@ -161,7 +161,7 @@ public class ExitTradeScheduler {
 				}
 
 				ExchangeService exchangeService = exchangeRouter.getService(position.getExchange());
-				OrderResult result = positionOpen.getStatus().equals(PositionOpenStatus.RUNNING)
+				OrderResult result = !position.isSimulation()
 						? exchangeService
 							.placeMarketOrder(apiKey, "BTCUSDT", quantity, position.getDirection(), null, null)
 						: exchangeService.createSimulatedOrder("BTCUSDT", quantity, observedPrice);

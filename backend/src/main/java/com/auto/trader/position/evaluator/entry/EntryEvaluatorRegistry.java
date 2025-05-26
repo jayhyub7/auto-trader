@@ -15,6 +15,7 @@ public class EntryEvaluatorRegistry {
 		evaluators.put(IndicatorType.FIVE_CANDLE, new StopHuntingEvaluator());
 		evaluators.put(IndicatorType.STOP_HUNTING, new StopHuntingEvaluator());
 		evaluators.put(IndicatorType.STOP_HUNTING_1M, new StopHuntingEvaluator_1m());
+		evaluators.put(IndicatorType.TEST, new TestEvaluator());
 
 	}
 
