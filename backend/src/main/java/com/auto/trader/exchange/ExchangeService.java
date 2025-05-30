@@ -7,6 +7,7 @@ import org.springframework.http.HttpMethod;
 import com.auto.trader.balance.dto.BalanceDto;
 import com.auto.trader.domain.ApiKey;
 import com.auto.trader.domain.Exchange;
+import com.auto.trader.exchange.dto.OrderFeeResult;
 import com.auto.trader.exchange.dto.OrderResult;
 import com.auto.trader.exchange.dto.SignedRequest;
 import com.auto.trader.position.enums.Direction;
@@ -43,4 +44,7 @@ public interface ExchangeService {
 	}
 
 	void setLeverage(ApiKey apiKey, String symbol, int leverage);
+
+	OrderFeeResult fetchOrderFee(ApiKey key, String symbol, String orderId);
+
 }

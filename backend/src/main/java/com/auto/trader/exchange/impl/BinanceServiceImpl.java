@@ -15,6 +15,7 @@ import com.auto.trader.domain.ApiKey;
 import com.auto.trader.domain.Exchange;
 import com.auto.trader.exchange.AbstractExchangeService;
 import com.auto.trader.exchange.ExchangeService;
+import com.auto.trader.exchange.dto.OrderFeeResult;
 import com.auto.trader.exchange.dto.OrderResult;
 import com.auto.trader.exchange.dto.SignedRequest;
 import com.auto.trader.position.enums.Direction;
@@ -254,6 +255,43 @@ public class BinanceServiceImpl extends AbstractExchangeService implements Excha
 			log.info("setLeverage result : {}", result);
 		} catch (Exception e) {
 			log.error("❌ Binance 레버리지 설정 실패: symbol={}, leverage={}", symbol, leverage, e);
+		}
+	}
+
+	@Override
+	public OrderFeeResult fetchOrderFee(ApiKey key, String symbol, String orderId) {
+		try {
+			String path = "/fapi/v1/userTrades";
+			String payload = "symbol=" + symbol + "&orderId=" + orderId;
+			SignedRequest signed = buildSignedRequest(key, path, payload, HttpMethod.GET);
+			String url = "https://fapi.binance.com" + path + "?" + signed.getQueryString();
+
+			ResponseEntity<List> response = restTemplate
+				.exchange(url, HttpMethod.GET, new HttpEntity<>(signed.getHeaders()), List.class);
+
+			List<Map<String, Object>> trades = response.getBody();
+			double totalFee = 0.0;
+			String currency = null;
+			double totalValue = 0.0;
+
+			for (Map<String, Object> trade : trades) {
+				double price = Double.parseDouble(trade.get("price").toString());
+				double qty = Double.parseDouble(trade.get("qty").toString());
+				double fee = Double.parseDouble(trade.get("commission").toString());
+				String commissionAsset = trade.get("commissionAsset").toString();
+
+				totalFee += fee;
+				totalValue += price * qty;
+				currency = commissionAsset;
+			}
+
+			double feeRate = (totalValue > 0) ? totalFee / totalValue : 0.0;
+
+			return OrderFeeResult.builder().feeAmount(totalFee).feeCurrency(currency).feeRate(feeRate).build();
+
+		} catch (Exception e) {
+			log.error("❌ Binance 수수료 조회 실패: {}", e.getMessage());
+			throw new RuntimeException("Binance 수수료 조회 실패", e);
 		}
 	}
 

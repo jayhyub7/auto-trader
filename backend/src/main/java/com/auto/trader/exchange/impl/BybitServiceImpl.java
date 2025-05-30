@@ -17,6 +17,7 @@ import com.auto.trader.domain.ApiKey;
 import com.auto.trader.domain.Exchange;
 import com.auto.trader.exchange.AbstractExchangeService;
 import com.auto.trader.exchange.ExchangeService;
+import com.auto.trader.exchange.dto.OrderFeeResult;
 import com.auto.trader.exchange.dto.OrderResult;
 import com.auto.trader.exchange.dto.SignedRequest;
 import com.auto.trader.position.enums.Direction;
@@ -271,6 +272,47 @@ public class BybitServiceImpl extends AbstractExchangeService implements Exchang
 			restTemplate.postForEntity(BASE_URL + path + "?" + signed.getQueryString(), entity, String.class);
 		} catch (Exception e) {
 			log.error("❌ Bybit 레버리지 설정 실패: symbol={}, leverage={}", symbol, leverage, e);
+		}
+	}
+
+	@Override
+	public OrderFeeResult fetchOrderFee(ApiKey key, String symbol, String orderId) {
+		try {
+			String path = "/v5/execution/list";
+			String query = "category=linear&orderId=" + orderId;
+			String url = "https://api.bybit.com" + path + "?" + query;
+
+			SignedRequest signed = buildSignedRequest(key, path, query, HttpMethod.GET);
+			HttpHeaders headers = signed.getHeaders();
+			HttpEntity<String> entity = new HttpEntity<>(headers);
+
+			ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+			Map<String, Object> result = response.getBody();
+			Map<String, Object> resultData = (Map<String, Object>) result.get("result");
+			List<Map<String, Object>> executions = (List<Map<String, Object>>) resultData.get("list");
+
+			double totalFee = 0.0;
+			double totalValue = 0.0;
+			String feeCurrency = "USDT";
+
+			for (Map<String, Object> exec : executions) {
+				double price = Double.parseDouble(exec.get("execPrice").toString());
+				double qty = Double.parseDouble(exec.get("execQty").toString());
+				double fee = Double.parseDouble(exec.get("execFee").toString());
+				String feeAsset = exec.get("feeCurrency").toString();
+
+				totalFee += fee;
+				totalValue += price * qty;
+				feeCurrency = feeAsset;
+			}
+
+			double feeRate = (totalValue > 0) ? totalFee / totalValue : 0.0;
+
+			return OrderFeeResult.builder().feeAmount(totalFee).feeCurrency(feeCurrency).feeRate(feeRate).build();
+
+		} catch (Exception e) {
+			log.error("❌ Bybit 수수료 조회 실패: {}", e.getMessage());
+			throw new RuntimeException("Bybit 수수료 조회 실패", e);
 		}
 	}
 

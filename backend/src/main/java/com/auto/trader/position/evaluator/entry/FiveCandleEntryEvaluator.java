@@ -13,6 +13,19 @@ import com.auto.trader.trade.indicator.IndicatorMemoryStore;
 
 import lombok.extern.slf4j.Slf4j;
 
+/*
+ * 2025-05-27
+ * 항목	판단
+	후행성	낮음 (과거 패턴 + 현재 캔들로만 판단) ✅
+	과최적화 가능성	보통 (5캔들 + 기준선 = 정형적이라 조정 쉬움) ✅
+	실시간성	좋음 (마감된 현재 캔들만으로 판단) ✅
+	위험성	존재 (기준선 터치 후 리버설이 아닐 경우 진입 손실 가능) ⚠️
+	보완 가능성	매우 높음 (StochRSI, VWBB 조합 필터로 강화 가능) ✅
+	✔️ 이 전략은 실전성 충분히 있음.
+❗ 단독 진입보다는 다른 지표와 병행, 혹은 TP/SL을 꼭 설정하는 조건부 진입 방식이 바람직함.
+
+ */
+
 @Slf4j
 @Component
 public class FiveCandleEntryEvaluator implements EntryConditionEvaluator {

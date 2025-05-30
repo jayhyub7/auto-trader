@@ -16,6 +16,7 @@ import com.auto.trader.domain.ApiKey;
 import com.auto.trader.domain.Exchange;
 import com.auto.trader.exchange.AbstractExchangeService;
 import com.auto.trader.exchange.ExchangeService;
+import com.auto.trader.exchange.dto.OrderFeeResult;
 import com.auto.trader.exchange.dto.OrderResult;
 import com.auto.trader.exchange.dto.SignedRequest;
 import com.auto.trader.position.enums.Direction;
@@ -250,6 +251,45 @@ public class BitgetServiceImpl extends AbstractExchangeService implements Exchan
 			restTemplate.postForEntity(BASE_URL + path + "?" + signed.getQueryString(), entity, String.class);
 		} catch (Exception e) {
 			log.error("❌ Bitget 레버리지 설정 실패: symbol={}, leverage={}", symbol, leverage, e);
+		}
+	}
+
+	@Override
+	public OrderFeeResult fetchOrderFee(ApiKey key, String symbol, String orderId) {
+		try {
+			String path = "/api/mix/v1/order/fills";
+			String url = "https://api.bitget.com" + path + "?orderId=" + orderId;
+
+			SignedRequest signed = buildSignedRequest(key, path, "orderId=" + orderId, HttpMethod.GET);
+			HttpHeaders headers = signed.getHeaders();
+			HttpEntity<String> entity = new HttpEntity<>(headers);
+
+			ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+			Map<String, Object> result = response.getBody();
+			List<Map<String, Object>> fills = (List<Map<String, Object>>) result.get("data");
+
+			double totalFee = 0.0;
+			double totalValue = 0.0;
+			String feeCoin = "USDT";
+
+			for (Map<String, Object> fill : fills) {
+				double price = Double.parseDouble(fill.get("price").toString());
+				double size = Double.parseDouble(fill.get("size").toString());
+				double fee = Double.parseDouble(fill.get("fee").toString());
+				String feeAsset = fill.get("feeCoin").toString();
+
+				totalFee += fee;
+				totalValue += price * size;
+				feeCoin = feeAsset;
+			}
+
+			double feeRate = (totalValue > 0) ? totalFee / totalValue : 0.0;
+
+			return OrderFeeResult.builder().feeAmount(totalFee).feeCurrency(feeCoin).feeRate(feeRate).build();
+
+		} catch (Exception e) {
+			log.error("❌ Bitget 수수료 조회 실패: {}", e.getMessage());
+			throw new RuntimeException("Bitget 수수료 조회 실패", e);
 		}
 	}
 

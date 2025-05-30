@@ -14,6 +14,7 @@ import com.auto.trader.balance.dto.cache.BalanceMemoryStore;
 import com.auto.trader.domain.ApiKey;
 import com.auto.trader.exchange.ExchangeRouter;
 import com.auto.trader.exchange.ExchangeService;
+import com.auto.trader.exchange.dto.OrderFeeResult;
 import com.auto.trader.exchange.dto.OrderResult;
 import com.auto.trader.position.entity.IndicatorCondition;
 import com.auto.trader.position.entity.Position;
@@ -22,6 +23,7 @@ import com.auto.trader.position.enums.AmountType;
 import com.auto.trader.position.enums.ConditionType;
 import com.auto.trader.position.enums.Direction;
 import com.auto.trader.position.enums.PositionOpenStatus;
+import com.auto.trader.position.enums.Side;
 import com.auto.trader.position.evaluator.exit.ExitConditionEvaluator;
 import com.auto.trader.position.evaluator.exit.ExitEvaluatorRegistry;
 import com.auto.trader.position.repository.PositionOpenRepository;
@@ -85,6 +87,7 @@ public class ExitTradeScheduler {
 
 		for (Position position : runningPositions) {
 			exitLogManager.log("🔍 종료 조건 확인 중: {}", position.getTitle());
+			exitLogManager.clear(); // ✅ 조건 평가 시작 시 로그 초기화
 			PositionOpen positionOpen = position.getPositionOpenList().get(0);
 			ExecutedOrder executed = executedOrderRepository
 				.findByOrderId(positionOpen.getCurrentOrderId())
@@ -170,9 +173,34 @@ public class ExitTradeScheduler {
 					throw new IllegalStateException("❌ 종료 시장가 주문 실패: " + result.getRawResponse());
 				}
 
+				if (position.isSimulation()) {
+					// 시뮬레이션용 수수료 고정값 설정 (예: 0.04%)
+					double assumedFeeRate = 0.0004;
+					double assumedFeeAmount = observedPrice * quantity * assumedFeeRate;
+
+					result.setFeeAmount(assumedFeeAmount);
+					result.setFeeCurrency("USDT");
+					result.setFeeRate(assumedFeeRate);
+					exitLogManager.log("🧪 시뮬레이션 수수료 적용: 수수료={} USDT, 비율={}", assumedFeeAmount, assumedFeeRate);
+				} else {
+					try {
+						OrderFeeResult feeResult = exchangeService
+							.fetchOrderFee(apiKey, "BTCUSDT", result.getOrderId());
+						result.setFeeAmount(feeResult.getFeeAmount());
+						result.setFeeCurrency(feeResult.getFeeCurrency());
+						result.setFeeRate(feeResult.getFeeRate());
+					} catch (Exception e) {
+						exitLogManager.log("⚠️ 수수료 조회 실패 (orderId: {}): {}", result.getOrderId(), e.getMessage());
+						result.setFeeAmount(0.0);
+						result.setFeeCurrency("UNKNOWN");
+						result.setFeeRate(0.0);
+					}
+				}
+
 				executedOrderService
-					.saveExecutedOrderWithIndicators(result, positionOpen, position.getExchange().name(), "BTCUSDT",
-							observedPrice);
+					.saveExecutedOrderWithIndicators(result, Side.EXIT, position.getDirection(), positionOpen,
+							position.getExchange().name(), "BTCUSDT", observedPrice, exitLogManager.getLogText());
+
 				PositionLogUtil.log(position);
 				tradeLogService.saveTradeLogWithConditions(result, position, positionOpen);
 				positionOpen.setExecuted(false);

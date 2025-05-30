@@ -10,6 +10,12 @@ import com.auto.trader.trade.indicator.IndicatorCache;
 import com.auto.trader.trade.indicator.IndicatorMemoryStore;
 import com.auto.trader.trade.indicator.IndicatorUtil.DualIndicatorPoint;
 
+/**
+ * 항목 판단 의미 있는 조건 고점/저점 돌파 + 꼬리 필터는 실제 스탑헌팅 패턴에 근접 ✅ 리스크 필터링 도지 캔들 제거, 꼬리 비율 제한
+ * 등 ✅ 후행성 낮음 (직전 2개 캔들만 평가) ✅ 거짓 신호 좁은 박스장에서 빈번하게 발생할 수 있음 ⚠️ 전략 보완 확인봉 body 조건
+ * 추가, 볼륨 필터, RSI 등 보완 시 매우 유효 ✅ ✔️ 스탑헌팅 전략으로 실전성 충분히 있음 단독 사용 시 오탐이 꽤 있으나, 추가
+ * 지표 필터링(예: StochRSI, VWBB 중단선 이탈 여부)**와 함께 쓰면 매우 강력한 진입 전략으로 활용 가능함.
+ */
 public class StopHuntingEvaluator implements EntryConditionEvaluator {
 
 	private static final int MIN_CANDLES = 50;

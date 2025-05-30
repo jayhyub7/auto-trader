@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.auto.trader.balance.dto.BalanceDto;
 import com.auto.trader.exchange.ExchangeRouter;
 import com.auto.trader.exchange.ExchangeService;
+import com.auto.trader.exchange.dto.OrderFeeResult;
 import com.auto.trader.exchange.dto.OrderResult;
 import com.auto.trader.position.entity.Position;
 import com.auto.trader.position.entity.PositionOpen;
@@ -21,6 +22,7 @@ import com.auto.trader.position.enums.AmountType;
 import com.auto.trader.position.enums.ConditionType;
 import com.auto.trader.position.enums.Direction;
 import com.auto.trader.position.enums.PositionOpenStatus;
+import com.auto.trader.position.enums.Side;
 import com.auto.trader.position.evaluator.entry.EntryConditionEvaluator;
 import com.auto.trader.position.evaluator.entry.EntryEvaluatorRegistry;
 import com.auto.trader.position.repository.PositionOpenRepository;
@@ -83,6 +85,7 @@ public class EntryTradeScheduler {
 
 		for (Position position : activePositions) {
 			entryLogManager.log("━━━━━━━━━━━━━━━ [🔍 포지션 검사 시작] ━━━━━━━━━━━━━━━");
+			entryLogManager.clear();
 			PositionLogUtil.log(position);
 
 			PositionOpen positionOpen = position.getPositionOpenList().get(0);
@@ -195,6 +198,7 @@ public class EntryTradeScheduler {
 				} else {
 					result = exchangeService.createSimulatedOrder(symbol, quantity, observedPrice);
 				}
+
 				positionOpen.setExecuted(false);
 				positionOpen.setExecutedAt(LocalDateTime.now());
 				positionOpen.setStatus(PositionOpenStatus.RUNNING);
@@ -217,14 +221,36 @@ public class EntryTradeScheduler {
 
 				result.setTpSlSuccess(slRegistered && tpRegistered);
 				result.setExecutionTimeSeconds((end - start) / 1000.0);
+				if (position.isSimulation()) {
+					// 시뮬레이션 수수료 적용 (0.04%)
+					double assumedFeeRate = 0.0004;
+					double assumedFeeAmount = observedPrice * quantity * assumedFeeRate;
+
+					result.setFeeAmount(assumedFeeAmount);
+					result.setFeeCurrency("USDT");
+					result.setFeeRate(assumedFeeRate);
+					entryLogManager.log("🧪 시뮬레이션 수수료 적용: 수수료={} USDT, 비율={}", assumedFeeAmount, assumedFeeRate);
+				} else {
+					try {
+						OrderFeeResult feeResult = exchangeService.fetchOrderFee(apiKey, symbol, result.getOrderId());
+						result.setFeeAmount(feeResult.getFeeAmount());
+						result.setFeeCurrency(feeResult.getFeeCurrency());
+						result.setFeeRate(feeResult.getFeeRate());
+					} catch (Exception e) {
+						entryLogManager.log("⚠️ 수수료 조회 실패 (orderId: {}): {}", result.getOrderId(), e.getMessage());
+						result.setFeeAmount(0.0);
+						result.setFeeCurrency("UNKNOWN");
+						result.setFeeRate(0.0);
+					}
+				}
 
 				entryLogManager.log("✅ 시장가 주문 체결 완료. 주문ID: {}", result.getOrderId());
 				entryLogManager.log("💰 체결 가격: {} (예상가: {})", result.getPrice(), observedPrice);
 				entryLogManager.log("⏱️ 주문 실행 소요 시간: {}초", result.getExecutionTimeSeconds());
 
 				executedOrderService
-					.saveExecutedOrderWithIndicators(result, positionOpen, position.getExchange().name(), symbol,
-							observedPrice);
+					.saveExecutedOrderWithIndicators(result, Side.EXIT, position.getDirection(), positionOpen,
+							position.getExchange().name(), symbol, observedPrice, entryLogManager.getLogText());
 				tradeLogService.saveTradeLogWithConditions(result, position, positionOpen);
 				positionOpenRepository.save(positionOpen);
 			}

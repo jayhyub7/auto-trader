@@ -292,8 +292,6 @@ const PositionCard = ({
           취소
         </button>
       </div>
-
-      <ToastContainer position="top-center" autoClose={3000} />
     </div>
   );
 };

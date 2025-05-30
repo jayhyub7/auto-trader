@@ -63,6 +63,12 @@ const Sidebar = ({
         >
           💰 포지션 오픈
         </li>
+        <li
+          onClick={() => openTab("executed-report", "체결 리포트")}
+          className="hover:text-yellow-400 cursor-pointer"
+        >
+          📈 체결 리포트
+        </li>
       </ul>
     </aside>
   );
