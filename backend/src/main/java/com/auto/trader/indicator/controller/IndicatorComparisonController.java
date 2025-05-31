@@ -134,4 +134,32 @@ public class IndicatorComparisonController {
 				vwbb.getBasis().stream().map(p -> new IndicatorPoint(p.getTime() / 1000L, p.getValue())).toList(),
 				vwbb.getLower().stream().map(p -> new IndicatorPoint(p.getTime() / 1000L, p.getValue())).toList());
 	}
+
+	// 📈 시장 추세를 판별하기 위한 열거형(enum)
+	// - BULL: 상승장 (가격이 지속적으로 상승 중인 구간)
+	// - BEAR: 하락장 (가격이 지속적으로 하락 중인 구간)
+	// - SIDEWAYS: 횡보장 (명확한 방향 없이 박스권 내에서 움직이는 구간)
+	public enum MarketTrend {
+		BULL, // 상승 추세
+		BEAR, // 하락 추세
+		SIDEWAYS // 횡보 구간
+	}
+
+	public MarketTrend detectMarketTrend(List<CandleDto> candles) {
+		if (candles == null || candles.size() < 20)
+			return MarketTrend.SIDEWAYS;
+
+		List<CandleDto> recent = candles.subList(candles.size() - 20, candles.size());
+		double first = recent.get(0).getClose();
+		double last = recent.get(recent.size() - 1).getClose();
+		double slope = (last - first) / first;
+
+		if (slope > 0.015)
+			return MarketTrend.BULL;
+		else if (slope < -0.015)
+			return MarketTrend.BEAR;
+		else
+			return MarketTrend.SIDEWAYS;
+	}
+
 }

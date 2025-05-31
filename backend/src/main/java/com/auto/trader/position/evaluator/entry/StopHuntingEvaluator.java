@@ -8,6 +8,7 @@ import com.auto.trader.scheduler.SchedulerLogManager;
 import com.auto.trader.trade.dto.CandleDto;
 import com.auto.trader.trade.indicator.IndicatorCache;
 import com.auto.trader.trade.indicator.IndicatorMemoryStore;
+import com.auto.trader.trade.indicator.IndicatorUtil;
 
 public class StopHuntingEvaluator implements EntryConditionEvaluator {
 
@@ -30,7 +31,6 @@ public class StopHuntingEvaluator implements EntryConditionEvaluator {
 		CandleDto wickCandle = candles.get(candles.size() - 2);
 		CandleDto confirmCandle = candles.get(candles.size() - 1);
 
-		// 최근 고점/저점 계산
 		double recentHigh = candles
 			.subList(candles.size() - MIN_CANDLES, candles.size())
 			.stream()
@@ -45,6 +45,9 @@ public class StopHuntingEvaluator implements EntryConditionEvaluator {
 			.orElse(Double.NaN);
 
 		log.log("📊 기준 고점: {}, 저점: {}", (int) recentHigh, (int) recentLow);
+		log
+			.log("📌 wickCandle 시점: {}, high: {}, low: {}", IndicatorUtil.toKST(wickCandle.getTime()),
+					wickCandle.getHigh(), wickCandle.getLow());
 
 		boolean stopTriggered = false;
 		if (direction == Direction.SHORT && wickCandle.getHigh() >= recentHigh) {
@@ -54,11 +57,10 @@ public class StopHuntingEvaluator implements EntryConditionEvaluator {
 		}
 
 		if (!stopTriggered) {
-			log.log("❌ 고/저점 돌파 안됨 → 스탑헌팅 조건 미충족");
+			log.log("❌ 고/저점 돌파 안됨 → 스탑헌팅 조건 불충족");
 			return false;
 		}
 
-		// wick 비율 필터링
 		double body = Math.abs(wickCandle.getClose() - wickCandle.getOpen());
 		if (body < 1e-8) {
 			log.log("❌ body=0 도지형 → 제외");
@@ -69,20 +71,33 @@ public class StopHuntingEvaluator implements EntryConditionEvaluator {
 		double lowerWick = Math.min(wickCandle.getClose(), wickCandle.getOpen()) - wickCandle.getLow();
 
 		if (direction == Direction.SHORT && upperWick > body * MAX_WICK_RATIO) {
-			log.log("❌ 윗꼬리 비율 과다 (upperWick: {}, body: {})", (int) upperWick, (int) body);
+			log.log("❌ 윗꼬리 비율 과다 (upperWick: {}, body: {}, 비율: {:.2f})", (int) upperWick, (int) body, upperWick / body);
 			return false;
 		}
 		if (direction == Direction.LONG && lowerWick > body * MAX_WICK_RATIO) {
-			log.log("❌ 아랫꼬리 비율 과다 (lowerWick: {}, body: {})", (int) lowerWick, (int) body);
+			log
+				.log("❌ 아랫꼬리 비율 과다 (lowerWick: {}, body: {}, 비율: {:.2f})", (int) lowerWick, (int) body,
+						lowerWick / body);
 			return false;
 		}
 
-		// 복귀(되돌림) 확인: confirmCandle이 wickCandle의 몸통으로 다시 들어왔는가?
 		boolean reverted = false;
-		if (direction == Direction.SHORT && confirmCandle.getClose() < wickCandle.getOpen()) {
-			reverted = true;
-		} else if (direction == Direction.LONG && confirmCandle.getClose() > wickCandle.getOpen()) {
-			reverted = true;
+		if (direction == Direction.SHORT) {
+			if (confirmCandle.getClose() < wickCandle.getOpen()) {
+				reverted = true;
+			} else {
+				log
+					.log("❌ 되돌림 실패 (SHORT) → confirm 종가({}) >= wick 시가({})", confirmCandle.getClose(),
+							wickCandle.getOpen());
+			}
+		} else if (direction == Direction.LONG) {
+			if (confirmCandle.getClose() > wickCandle.getOpen()) {
+				reverted = true;
+			} else {
+				log
+					.log("❌ 되돌림 실패 (LONG) → confirm 종가({}) <= wick 시가({})", confirmCandle.getClose(),
+							wickCandle.getOpen());
+			}
 		}
 
 		if (!reverted) {

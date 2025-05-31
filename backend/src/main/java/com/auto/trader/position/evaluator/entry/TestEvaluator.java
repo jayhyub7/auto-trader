@@ -8,6 +8,7 @@ import com.auto.trader.scheduler.SchedulerLogManager;
 import com.auto.trader.trade.dto.CandleDto;
 import com.auto.trader.trade.indicator.IndicatorCache;
 import com.auto.trader.trade.indicator.IndicatorMemoryStore;
+import com.auto.trader.trade.indicator.IndicatorUtil;
 
 public class TestEvaluator implements EntryConditionEvaluator {
 
@@ -27,23 +28,25 @@ public class TestEvaluator implements EntryConditionEvaluator {
 			return false;
 		}
 
+		// 🔍 디버깅: 최근 50봉 High/Low 확인
+		log.log("📌 최근 50봉 고가/저가 목록:");
+		List<CandleDto> recentCandles = candles.subList(candles.size() - MIN_CANDLES, candles.size());
+		for (CandleDto c : recentCandles) {
+			log
+				.log("🕒 time: {}, high: {}, low: {}, open: {}, close: {}", IndicatorUtil.toKST(c.getTime()),
+						c.getHigh(), c.getLow(), c.getOpen(), c.getClose());
+		}
+
 		CandleDto wickCandle = candles.get(candles.size() - 2);
 		CandleDto confirmCandle = candles.get(candles.size() - 1);
 
-		double recentHigh = candles
-			.subList(candles.size() - MIN_CANDLES, candles.size())
-			.stream()
-			.mapToDouble(CandleDto::getHigh)
-			.max()
-			.orElse(Double.NaN);
-		double recentLow = candles
-			.subList(candles.size() - MIN_CANDLES, candles.size())
-			.stream()
-			.mapToDouble(CandleDto::getLow)
-			.min()
-			.orElse(Double.NaN);
+		double recentHigh = recentCandles.stream().mapToDouble(CandleDto::getHigh).max().orElse(Double.NaN);
+		double recentLow = recentCandles.stream().mapToDouble(CandleDto::getLow).min().orElse(Double.NaN);
 
 		log.log("📊 (1m) 기준 고점: {}, 저점: {}", (int) recentHigh, (int) recentLow);
+		log
+			.log("📌 wickCandle 시점: {}, high: {}, low: {}", IndicatorUtil.toKST(wickCandle.getTime()),
+					wickCandle.getHigh(), wickCandle.getLow());
 
 		boolean stopTriggered = false;
 		if (direction == Direction.SHORT && wickCandle.getHigh() >= recentHigh) {
@@ -76,10 +79,22 @@ public class TestEvaluator implements EntryConditionEvaluator {
 		}
 
 		boolean reverted = false;
-		if (direction == Direction.SHORT && confirmCandle.getClose() < wickCandle.getOpen()) {
-			reverted = true;
-		} else if (direction == Direction.LONG && confirmCandle.getClose() > wickCandle.getOpen()) {
-			reverted = true;
+		if (direction == Direction.SHORT) {
+			if (confirmCandle.getClose() < wickCandle.getOpen()) {
+				reverted = true;
+			} else {
+				log
+					.log("❌ 되돌림 실패 (SHORT) → confirm 종가({}) >= wick 시가({})", confirmCandle.getClose(),
+							wickCandle.getOpen());
+			}
+		} else if (direction == Direction.LONG) {
+			if (confirmCandle.getClose() > wickCandle.getOpen()) {
+				reverted = true;
+			} else {
+				log
+					.log("❌ 되돌림 실패 (LONG) → confirm 종가({}) <= wick 시가({})", confirmCandle.getClose(),
+							wickCandle.getOpen());
+			}
 		}
 
 		if (!reverted) {

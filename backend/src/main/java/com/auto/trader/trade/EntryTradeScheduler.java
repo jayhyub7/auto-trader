@@ -75,7 +75,7 @@ public class EntryTradeScheduler {
 		this.entryLogManager = entryLogManager;
 	}
 
-	@Scheduled(initialDelay = 30000, fixedDelay = 1000)
+	@Scheduled(initialDelay = 30000, fixedDelay = 3000)
 	@Transactional
 	public void checkEntryPosition() {
 		if (!entryLogManager.isEnabled())

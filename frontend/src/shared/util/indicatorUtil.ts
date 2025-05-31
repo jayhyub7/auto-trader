@@ -197,3 +197,22 @@ export function formatTimestampKST(unixTime: number): string {
     second: "2-digit",
   });
 }
+
+export function calculateVWAP(candles: Candle[]): IndicatorPoint[] {
+  const result: IndicatorPoint[] = [];
+  let cumulativePV = 0;
+  let cumulativeVolume = 0;
+
+  for (let i = 0; i < candles.length; i++) {
+    const candle = candles[i];
+    const typicalPrice = (candle.high + candle.low + candle.close) / 3;
+    cumulativePV += typicalPrice * candle.volume;
+    cumulativeVolume += candle.volume;
+
+    const vwap =
+      cumulativeVolume === 0 ? null : cumulativePV / cumulativeVolume;
+    result.push({ time: candle.time, value: vwap });
+  }
+
+  return result;
+}
