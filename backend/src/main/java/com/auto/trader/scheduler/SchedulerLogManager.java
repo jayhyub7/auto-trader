@@ -28,17 +28,24 @@ public class SchedulerLogManager {
 	}
 
 	public void log(String message) {
+		// ✅ DB 저장은 항상
+		logBuilder.append(timestamp()).append(" ").append(message).append("\n");
+
+		// ✅ 콘솔 출력은 조건부
 		if (isLogEnabled()) {
 			log.info(message);
-			logBuilder.append(timestamp()).append(" ").append(message).append("\n");
 		}
 	}
 
 	public void log(String format, Object... args) {
+		String formatted = String.format(format, args);
+
+		// ✅ DB 저장은 항상
+		logBuilder.append(timestamp()).append(" ").append(formatted).append("\n");
+
+		// ✅ 콘솔 출력은 조건부
 		if (isLogEnabled()) {
 			log.info(format, args);
-			String formatted = String.format(format, args);
-			logBuilder.append(timestamp()).append(" ").append(formatted).append("\n");
 		}
 	}
 

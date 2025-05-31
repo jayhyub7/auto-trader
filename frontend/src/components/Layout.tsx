@@ -8,6 +8,7 @@ import AuthKeyManager from "@/pages/AuthKeyManager";
 import CurrentBalance from "@/pages/CurrentBalance";
 import PositionManager from "@/features/position-manager/PositionManager";
 import PositionOpen from "@/features/position-open/PositionOpen";
+import ExecutedReport from "@/features/executed-report/executedReport";
 import IndicatorComparison from "@/pages/admin/IndicatorComparison";
 
 const ALL_COMPONENTS: Record<string, () => React.ReactNode> = {
@@ -18,6 +19,7 @@ const ALL_COMPONENTS: Record<string, () => React.ReactNode> = {
   "current-balance": () => <CurrentBalance />,
   "position-manager": () => <PositionManager />,
   "position-open": () => <PositionOpen />,
+  "executed-report": () => <ExecutedReport />,
 };
 
 const Layout = () => {

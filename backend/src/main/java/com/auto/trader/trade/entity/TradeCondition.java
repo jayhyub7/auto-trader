@@ -33,29 +33,39 @@ import lombok.Setter;
 @Builder
 public class TradeCondition extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trade_log_id", nullable = false)
-    private TradeLog tradeLog;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "trade_log_id", nullable = false)
+	private TradeLog tradeLog;
 
-    @Enumerated(EnumType.STRING)
-    private IndicatorType type;
+	@Enumerated(EnumType.STRING)
+	private IndicatorType type;
 
-    private Double value;
-    private Double k;
-    private Double d;
+	private Double value;
+	private Double k;
+	private Double d;
 
-    @Enumerated(EnumType.STRING)
-    private Operator operator;
+	@Enumerated(EnumType.STRING)
+	private Operator operator;
 
-    @Enumerated(EnumType.STRING)
-    private Timeframe timeframe;
+	@Enumerated(EnumType.STRING)
+	private Timeframe timeframe;
 
-    @Enumerated(EnumType.STRING)
-    private ConditionPhase conditionPhase;
+	@Enumerated(EnumType.STRING)
+	private ConditionPhase conditionPhase;
 
-    private boolean enabled;
+	private boolean enabled;
+
+	@Override
+	public String toString() {
+		return String
+			.format("📌 TradeCondition { type=%s, value=%.2f, k=%.2f, d=%.2f, operator=%s, timeframe=%s, phase=%s, enabled=%s }",
+					type != null ? type.name() : "null", value != null ? value : 0.0, k != null ? k : 0.0,
+					d != null ? d : 0.0, operator != null ? operator.name() : "null",
+					timeframe != null ? timeframe.name() : "null",
+					conditionPhase != null ? conditionPhase.name() : "null", enabled);
+	}
 }

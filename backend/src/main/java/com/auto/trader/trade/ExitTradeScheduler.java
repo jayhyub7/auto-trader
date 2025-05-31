@@ -97,9 +97,10 @@ public class ExitTradeScheduler {
 				continue;
 			}
 
+			double stopLossPercent = (positionOpen.getStopLoss() / 100.0) / positionOpen.getLeverage();
+
 			double stopLossPrice = (positionOpen.getAmountType() == AmountType.PERCENT)
-					? calcStopLossPrice(executed.getExecutedPrice(), positionOpen.getStopLoss(),
-							position.getDirection())
+					? calcStopLossPrice(executed.getExecutedPrice(), stopLossPercent, position.getDirection())
 					: positionOpen.getStopLoss();
 
 			double currentPrice = indicatorStore.get("BTCUSDT_1m").getCurrentPrice();

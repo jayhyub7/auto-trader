@@ -9,4 +9,5 @@ import com.auto.trader.trade.entity.TradeLog;
 
 @Repository
 public interface TradeLogRepository extends JpaRepository<TradeLog, Long> {
+	TradeLog findByOrderId(String orderId);
 }

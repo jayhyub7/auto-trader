@@ -75,7 +75,7 @@ public class EntryTradeScheduler {
 		this.entryLogManager = entryLogManager;
 	}
 
-	@Scheduled(fixedDelay = 1000)
+	@Scheduled(initialDelay = 30000, fixedDelay = 1000)
 	@Transactional
 	public void checkEntryPosition() {
 		if (!entryLogManager.isEnabled())
@@ -199,7 +199,8 @@ public class EntryTradeScheduler {
 					result = exchangeService.createSimulatedOrder(symbol, quantity, observedPrice);
 				}
 
-				positionOpen.setExecuted(false);
+				positionOpen.setExecuted(true);
+				positionOpen.setCurrentOrderId(result.getOrderId());
 				positionOpen.setExecutedAt(LocalDateTime.now());
 				positionOpen.setStatus(PositionOpenStatus.RUNNING);
 
@@ -249,7 +250,7 @@ public class EntryTradeScheduler {
 				entryLogManager.log("⏱️ 주문 실행 소요 시간: {}초", result.getExecutionTimeSeconds());
 
 				executedOrderService
-					.saveExecutedOrderWithIndicators(result, Side.EXIT, position.getDirection(), positionOpen,
+					.saveExecutedOrderWithIndicators(result, Side.ENTRY, position.getDirection(), positionOpen,
 							position.getExchange().name(), symbol, observedPrice, entryLogManager.getLogText());
 				tradeLogService.saveTradeLogWithConditions(result, position, positionOpen);
 				positionOpenRepository.save(positionOpen);

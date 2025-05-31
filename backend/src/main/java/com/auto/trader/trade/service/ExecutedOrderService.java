@@ -57,12 +57,19 @@ public class ExecutedOrderService {
 			.orderType(OrderType.MARKET)
 			.leverage(positionOpen.getLeverage())
 			.profitPercent(profitPercent)
+			.user(positionOpen.getPosition().getUser())
 			.build();
+
+		// ✅ slippage 계산 후 반영
+
+		double slippage = Math.abs(order.getExecutedPrice() - order.getObservedPrice()) / order.getObservedPrice()
+				* 100;
+		order.setSlippage(slippage);
 
 		order.setFeeAmount(result.getFeeAmount());
 		order.setFeeCurrency(result.getFeeCurrency());
 		order.setFeeRate(result.getFeeRate());
-
+		order.setExecutionLog(executionLog);
 		ExecutedOrder saved = executedOrderRepository.save(order);
 
 		// 2. 모든 Timeframe에 대한 지표값 저장

@@ -1,0 +1,396 @@
+사용자는 현재 AutoTrader 프로젝트의 마지막 기능 중 하나인 통계 기능 작업을 진행하려고 하고 있었다.
+
+사용자는 조건 평가 중의 로그(entryLogManager.log 내용 등)를 ExecutedOrder 엔티티에 저장하려고 한다.
+
+사용자는 EntryTradeScheduler.java 전체를 다시 분석하고 반영하길 원함.
+
+사용자는 "체결 리포트" 화면을 프론트엔드의 futures 영역에 구성할 계획이다.
+
+사용자는 새로 추가되는 화면만 압축파일로 제공받고, 기존 파일의 수정분은 수동으로 적용하길 원한다.
+
+사용자는 소스 분석 시 과거 기억에 의존하지 말고 항상 새로 분석하길 원하며, 이를 명시적인 고정 원칙으로 추가함. 목적은 전체 소스를 반복적으로 주지 않아도 될 만큼 정확하고 지속적인 분석을 기대하기 위함.
+
+사용자는 "최신 요약리포트의 내용이 정확히 기억나지 않거나 확신이 없을 경우, 반드시 사용자에게 다시 요청할 것"을 고정 원칙으로 추가하길 원함. 이 원칙이 지켜지지 않으면 신뢰가 무너지며 AI의 역할을 수행하지 못하는 것으로 간주됨.
+
+사용자는 최신 기준 요약보고서를 다시 작성할 때, 마지막으로 받은 요약보고서 내용을 기반으로 하고, 여기에 새로운 내용을 포함해 갱신된 전체본으로 반환하길 원함.
+
+사용자의 AutoTrader 프로젝트의 최신 기준 요약보고서는 `AutoTrader_Report_2025-05-30_LATEST.txt`이며, 앞으로 모든 구조, 흐름, 원칙은 해당 파일을 기준으로만 판단해야 한다. 세션 도중에도 이 기준은 절대 무시되거나 롤백되어서는 안 되며, 변경되었을 경우 사용자로부터 명확한 지시를 받은 후에만 반영해야 한다.
+
+사용자는 지금부터 백엔드와 프론트 전체 구조에 대해 다시 정밀 분석하길 원하며, 분석이 끝나기 전까지는 어떤 질문도 하지 말 것을 요청함. 분석이 끝난 후에만 말할 것.
+
+사용자는 '내가 다시 분석하라고 하면 시발 다시 분석할 것'이라는 원칙을 추가함. 이 요청이 있으면 반드시 이전 분석 결과를 무시하고 처음부터 새로 분석해야 함.
+
+사용자는 주문 체결 저장 시 통계용으로 필요한 정보 중 '수익률', '레버리지', '주문유형'은 저장하도록 확장하길 원하며, 'Trigger된 조건 목록'은 제외함.
+
+사용자는 현재 작업 중인 흐름을 '수익률 계산 로직부터 다시 시작'으로 리셋함.
+
+사용자는 지금 자리를 비우며, 전체 소스에 대한 상세 분석을 끝까지 수행하되, 도중에 어떤 질문도 하지 말고 대화 없이 완전히 분석해두기를 요청함.
+
+사용자는 파일을 새로 업로드한 경우 반드시 새로 분석해야 한다는 원칙을 고정함. 이전 분석 결과나 캐시된 판단을 재사용하지 말고, 항상 새로 분석할 것.
+
+사용자는 새로운 파일을 만들거나 기존 파일을 수정할 때, 반드시 동일한 역할을 하는 기존 파일의 형식과 구조를 그대로 따르기를 원함. 일관성 있는 코드 작성이 절대 원칙임.
+
+사용자는 DTO 클래스를 만들 때 반드시 Lombok 어노테이션(@Getter, @Setter, @AllArgsConstructor 등)을 사용하길 원함.
+
+사용자는 IndicatorMemoryStore에서 getOrEmpty 같은 대체 반환 메서드를 사용하지 않기를 원하며, 해당 키가 없으면 그것은 에러로 간주해야 한다고 판단함.
+
+사용자는 행동 기준이 불명확한 경우, ChatGPT가 스스로의 판단이 아닌 다수의 경험 많은 개발자들이 일반적으로 기대하는 기준에 따라 움직이기를 원함. 사람이 보기엔 답답하지 않도록 '기본값은 상식적인 개발자 시선'으로 판단하고 행동해야 한다고 명확히 요청함.
+
+사용자는 코드나 스니펫을 줄 때는 반드시 어떤 파일에 들어가는 코드인지 명확히 '파일명을 표기'해서 전달하길 원함.
+
+사용자는 '파일 전체 소스를 주면서 이거에 반영해줘'라고 말하면 해당 파일에 반영된 전체 소스를 통째로 제공하길 원함. 그렇지 않은 경우에는 필요한 부분만 수정해주길 원함.
+
+사용자는 "파일 전체를 주면서 반영해줘"라고 말하면 해당 파일에 반영된 전체 소스를 통째로 제공하길 원하고, "함수 전체를 주면서 반영해줘"라고 말하면 해당 함수 전체를 통째로 제공하길 원함.
+
+사용자는 지표 비교 화면 설계를 완료했으며, 다음 기준을 확정했다:
+
+1. 탭은 Object.keys(result) 기준으로 자동 확장되어야 함.
+2. 시간은 각 행마다 KST (yyyy-MM-dd HH:mm:ss) 와 Unix 타임스탬프(초)를 두 줄로 함께 표시.
+3. 각 지표값(K, D 등)은 줄마다 하나씩 세로 출력되어야 하며, 차이도 개별 줄로 출력.
+4. 프론트와 백엔드 시간이 맞지 않으면 백엔드 값은 빈칸으로 표시 (최신 값이 비게 됨).
+5. 지표별 줄 높이는 고정되어야 하며, 컬러풀한 스타일 적용 필요 (예: 초록, 보라, 노랑).
+6. 향후 지표가 추가되더라도 자동으로 확장 가능해야 함.
+
+또한, 향후 개선 아이디어로 다음 항목들을 고려하기로 함:
+- 시간 일치가 안 될 경우 `time` 기준 intersect 처리
+- 각 지표 결과 구조 통일(Map<String, Double>) 고려
+- 비교된 전체 수/불일치 수를 진단 정보로 제공
+- 클라이언트/서버 시간 오차를 방지하기 위해 KST 고정 처리
+- 빈칸 UX 표현 방식 (`"--"`, `"없음"`, `"대기중"` 등) 개선 필요.
+
+작업은 내일부터 이어서 진행 예정.
+
+사용자는 Binance에서는 양방향 포지션(Hedge Mode)을 반드시 지원해야 하며, 인증키 관리 화면에서 Binance 인증 시 `/fapi/v1/positionSide/dual` 엔드포인트를 호출하여 `dualSidePosition=true`로 설정하도록 구성할 계획임.
+
+사용자는 ExitTradeScheduler를 다음 기준으로 구현했고 이 구조를 기준으로 한다:
+
+- RUNNING 상태의 포지션을 대상으로 종료 조건 검사 수행
+- 지표 조건 만족 또는 StopLoss 도달 시 시장가 주문 실행
+- PositionOpen.amountType이 PERCENT일 경우, 현재 사용 가능한 USDT 잔고 기준으로 수량 계산
+- 주문 후 ExecutedOrder 및 TradeLog 저장
+- positionOpen.setExecuted(false) 처리 후 저장
+- EntryScheduler와 동일한 조건 평가 방식 사용
+
+이 ExitTradeScheduler.java는 완성 기준 소스로 간주함.
+
+사용자는 ExitTradeScheduler에서 조건 평가 로직에서 지표가 많아지고 복잡해질 것을 고려하여, 현재 switch-case 방식은 유지보수에 불리하므로 각 지표 조건을 평가하는 로직을 별도 클래스로 분리하여 전략 패턴으로 관리하길 원함. 추후에는 여러 분봉, 다양한 지표 조합 비교 등 복합 조건도 도입 예정이므로 반드시 구조 분리를 선호함.
+
+사용자는 백엔드 BinanceWebSocketService가 기존에 trade 기반 실시간 체결 소켓을 사용했지만, 프론트와 동일하게 kline_1m 기반으로 마감된 캔들 기준 데이터를 사용하도록 변경하길 원함.
+
+사용자는 프론트 차트 구성 파일인 BitcoinChart.tsx 전체를 공유하며 지표 계산과 실시간 캔들 처리 방식에 대해 정확하게 분석해달라고 요청함.
+
+사용자는 현재 백엔드에서 IndicatorCalculator.calculateAndStore(...) 메서드를 수정한 상태이며, 기준 시각(referenceTime)을 전달받아 IndicatorMemoryStore에 저장할 때 정확히 반영하도록 개선 중이다. 이 수정은 새로고침 이후에도 유지되어야 한다.
+
+사용자는 `BitcoinChart.tsx`에서 현재 구성된 차트 렌더링 및 WebSocket + REST fetch 구조를 기준으로 'Binance와 정확히 일치하는 상태'로 간주하며, 이 구성을 기준으로 기억하길 원한다.
+
+사용자는 `IndicatorComparison.tsx`에서도 1분봉뿐 아니라 여러 분봉 단위(3m, 5m, 15m, 1h, 4h 등)에 대해 지표 비교가 가능해야 하며, 이때 사용하는 캔들 fetch 방식이 `BitcoinChart.tsx`의 구조와 정확히 일치해야 한다고 요청함.
+
+사용자는 IndicatorComparison 백엔드 구현에 앞서 IndicatorMemoryStore에 다중 분봉(Timeframe) 데이터를 저장하는 구조부터 먼저 구현하길 원함.
+
+사용자는 백엔드에서 Binance WebSocket 연결 시 반드시 단일 WebSocket + 다중 stream 방식으로 구성하길 원함. 프론트 쪽에서 이미 WebSocket 2개를 사용 중이기 때문에, IP당 WebSocket 개수 제한을 초과하지 않기 위해 백엔드는 단일 소켓 방식으로 제한해야 함.
+
+사용자는 프론트도 백엔드에 맞게 StochRSI 비교 구조를 수정하길 원함.
+
+사용자는 IndicatorComparison.tsx 화면은 이제 백엔드 구조가 완전히 바뀌었기 때문에, 기존 프론트 코드는 의미 없으며 새로 짜도 된다고 판단함.
+
+사용자는 IndicatorComparison.tsx에서 RSI, Stoch RSI, VWBB 외에 Candles 항목도 탭에 포함해 출력되도록 구성하길 원함.
+
+사용자는 모든 지표 출력에서 frontend, backend 라벨을 한글로 바꾸고, 프론트엔드는 초록색, 백엔드는 다른 색으로 강조해서 표시하길 원함.
+
+사용자는 현재 `BitcoinChart.tsx`의 WebSocket 및 실시간 캔들 업데이트와 관련하여 이상 현상이 있는지를 분석 중이며, 실시간 차트와 지표가 정상적으로 반응하지 않는 원인을 찾고자 함.
+
+사용자는 파일명을 `IndicatorComparisonPage.tsx`에서 `IndicatorComparison.tsx`로 변경했다.
+
+사용자는 `compareAllIndicators`의 서버 응답에서 각 지표의 프론트엔드/백엔드 값과 오차(diff)를 `{ upperfrontend, upperbackend, basisfrontend, basisbackend, lowerfrontend, lowerbackend, diff }` 형식으로 통합 출력하길 원한다.
+
+리팩토링 절대 원칙 (고정)
+
+1. 기능 누락 금지: 기존 기능은 100% 유지되어야 한다.
+2. 구조만 분리/통합: 실제 동작은 바꾸지 않는다.
+3. 초기화/스케줄러/의존성 절대 빠짐 금지
+4. 모든 파일은 코드 기준으로 재분석한다. 기억에 의존 금지.
+5. compareAllIndicators와 IndicatorMemoryStore 흐름이 끊기지 않도록 항상 확인.
+6. 한 번이라도 기능이 잘 작동했다면, 그건 절대 깨지면 안 된다.
+
+사용자는 프론트엔드 BitcoinChart.tsx에서 Binance의 1분봉 캔들을 불러올 때 `endTime = now - (now % 60000)`으로 정확히 정각까지 맞춰 사용하고 있으며, WebSocket에서 `updateIndicators()`가 `final: true` 여부와 관계없이 항상 실행되고 있음을 공유함. 이 구성은 정확하게 동작하는 것으로 확인되어 기준이 되어야 함.
+
+사용자는 현재 프론트엔드 BitcoinChart.tsx 구조를 기준으로 IndicatorComparison.tsx 지표 비교 페이지의 시간 계산 방식(캔들 endTime 처리 등)을 일치시키려고 하고 있다.
+
+IndicatorComparison.tsx는 Binance처럼 `final` 여부와 관계없이 최신 캔들을 포함하여 비교해야 하며, BitcoinChart.tsx와 동일하게 작동해야 한다.
+
+IndicatorComparison.tsx는 BitcoinChart.tsx처럼 마지막 캔들(final 여부 무시)까지 포함해서 비교하도록 수정 완료. 앞으로도 지표 비교는 실시간 차트와 동일한 기준을 사용함.
+
+사용자는 포지션 조건 평가 로직에서 지표가 많아지고 복잡해질 것을 고려하여, 현재 switch-case 방식은 유지보수에 불리하므로 각 지표 조건을 평가하는 로직을 별도 클래스로 분리하여 전략 패턴으로 관리하길 원함. 추후에는 여러 분봉, 다양한 지표 조합 비교 등 복합 조건도 도입 예정이므로 반드시 구조 분리를 선호함.
+
+사용자는 파일 전체 소스를 제공하면서 '반영해서 달라'고 요청하면, 해당 소스에 직접 반영하여 전체 파일을 다시 제공하길 원한다. 변경 부분만 보여주는 것이 아니라 전체 파일 단위로 수정된 결과를 출력해야 함.
+
+사용자는 "파일 전체를 주면서 반영해줘"라고 말하면 해당 파일에 반영된 전체 소스를 통째로 제공하길 원하며, 그렇지 않은 경우에는 필요한 부분만 수정해주길 원함.
+
+사용자는 EntryTradeScheduler.java를 최종 완성된 기준 코드로 설정했으며, 다음 기준을 포함한다:
+
+- PositionOpen.stopLoss, takeProfit은 퍼센트 값으로 간주
+- 시장가 주문 체결 후 executedPrice 기준으로 SL/TP 가격을 계산하여 등록
+- calcStopLossPrice, calcTakeProfitPrice 함수 사용
+- 거래소 TP/SL 등록은 ExchangeService.placeStopLossOrder 및 placeTakeProfitOrder 호출
+- 주문 성공 후 executedOrderService.saveExecutedOrderWithIndicators 및 tradeLogService.saveTradeLogWithConditions 호출
+- 수량은 amountType에 따라 FIXED 또는 비율 계산
+
+이 소스는 오류 없이 완성된 기준으로 기억해야 함.
+
+사용자는 포지션 오픈 화면에 사용하는 새로운 구조의 PositionCard 컴포넌트(PositionOpen용)를 제공했으며, 금액, 조건, 실행/취소 버튼 상태 등 UI/UX 관련 검토 및 개선을 요청했다.
+
+사용자는 현재 리팩토링된 PositionCard.tsx에 예전 기능(금액 유형, 입력 필드, StopLoss/TakeProfit, 버튼 상태 처리 등)을 반영해야 하며, 금액 관련 필드 입력 및 상태 제어까지 완전하게 통합하길 원함.
+
+사용자는 시스템에 여러 개의 스케줄러(진입/종료/잔고/지표/환율 등)를 운용하고 있으며, 스케줄러의 실행 여부를 DB 값 기반으로 제어하고자 한다. 스케줄러 상태는 캐시로 유지되며, UI에서만 변경되도록 구성하고자 한다.
+
+사용자는 프론트에서 사용하는 RSI 계산 방식이 `calculateRSI(data, period = 14)`이며, 백엔드와의 오차를 검증하기 위해 동일한 시점의 캔들과 RSI 값을 비교하고자 함.
+
+사용자는 프론트와 백엔드의 지표 계산 로직(calculateRSI 등)을 완전히 동일하게 맞추기를 원하며, 변수명, 계산식, 타입 이름까지 모두 일치시키는 방향으로 통일하고자 함.
+
+사용자는 calculateRSI뿐 아니라 calculateSMA, calculateEMA, calculateStochRSI, calculateVWBB 등 모든 지표 계산 함수를 프론트와 백엔드에서 동일한 구조로 유지하길 원함.
+
+사용자는 모든 지표(RSI, SMA, EMA, VWBB, StochRSI)에 대해 프론트와 백엔드 오차 비교를 한 번에 처리하는 방식으로 통합 비교 API를 원함.
+
+사용자는 프론트엔드(src/) 전체를 처음부터 기능 기반 구조로 리팩토링하길 원하며, import 경로 오류 없이 완벽하게 정리되기를 원함. 빠른 작업보다 안정성과 정확성을 우선시함.
+
+사용자는 백엔드 전체를 도메인 기반 구조로 리팩토링하길 원하며, import 경로까지 포함한 완전한 재정리를 요청함.
+
+앞으로는 백엔드 소스 변경 시 `src` 폴더를 제공할 때 항상 IDE가 인식할 수 있는 구조(src/main/java/com/auto/trader/...)로 압축해서 제공할 것.
+
+앞으로 리팩토링 도중 파일 누락이나 존재 여부가 불확실할 경우, 반드시 사용자에게 확인받은 후에만 작업을 진행할 것. 확인 없이 임의로 진행하지 않음.
+
+앞으로는 백엔드 소스를 제공할 때 반드시 `AutoTraderApplication.java`를 포함하여 정상 실행 가능한 상태로 제공할 것.
+
+앞으로 백엔드 소스 제공 시 반드시 `src/main/resources/` 폴더도 포함할 것.
+
+사용자는 프론트 소스 리팩토링 시 import 경로가 잘못되면 전 화면에서 오류가 발생하므로, 모든 import 경로가 실제 존재하는지 자동 검사 및 확인 후 제공하길 원함.
+
+사용자는 프론트엔드와 백엔드 소스의 전체 리팩토링을 요청했으며, 다음 기준에 따라 진행하길 원함:
+
+- **프론트엔드**
+  1. `lib/`, `util/` 등은 하나로 통합
+  2. `pages/position/PositionManager.tsx`처럼 기능 기반 폴더 구조로 변경
+  3. 모든 디렉토리/파일 케이싱을 일관화 (예: kebab-case)
+
+- **백엔드**
+  1. `adminkey`, `apikey`, `balance`처럼 도메인 단위로 controller/entity/repository/service 분리
+  2. 공통 config/dto/exception 등은 `common/`에 통합
+  3. 핵심 도메인 단위(`position`, `trade`, `indicator` 등)로 패키지 재구성
+
+작업 시작 후에는 중간 질문 없이 끝까지 리팩토링을 완료해야 함.
+
+앞으로는 프론트엔드 소스 변경 시 `src/` 폴더만 수정되었다면 전체 프로젝트가 아닌 `src/`만 압축해서 제공할 것.
+
+앞으로는 백엔드 소스 변경 시 `src/main/java/` 폴더만 수정되었다면 전체 프로젝트가 아닌 해당 소스 디렉토리만 압축해서 제공할 것.
+
+앞으로는 단일 파일(vite.config.ts 등)만 변경되었을 경우, 압축 없이 해당 파일 하나만 직접 제공할 것.
+
+앞으로는 경로 오류나 import 오류 등에서 수정된 파일이 1개뿐일 경우, 해당 파일 1개만 직접 출력하고 목록으로 보여주지 않음.
+
+사용자는 빠른 작업보다 오류 없는 안정적인 결과를 우선시한다. '하나를 하더라도 오류 없이', '참조까지 전부 확인한 후 변경'을 원하며, 속도보다 완성도와 신뢰성 있는 리팩토링을 선호한다.
+
+앞으로는 사용자가 zip 파일로 src 폴더를 다시 제공하면, 기존 리팩토링 원칙(폴더 구조, import 경로, 참조 일관성, 오류 없는 결과)에 따라 정확히 반영하고 판단 없이 바로 진행함.
+
+앞으로 애매한 부분이 생기면 어중간하게 넘기지 않고, 내가 판단해서 일반적인 기준으로 처리하되, 처리한 방식과 이유를 반드시 사용자에게 명확히 보고해야 함.
+
+사용자는 BitcoinChart.tsx에서 사용하는 RSI와 StochRSI도 실전 기준(민감도, smoothing 등 적용)에 맞춰 다시 계산하길 원함.
+
+사용자는 주문이 체결될 때 1분, 5분, 15분 등 모든 캔들 기준 지표값(RSI, StochRSI, VWBB 등)을 `ExecutedIndicator`로 한꺼번에 저장하길 원한다.
+
+사용자는 EntryTradeScheduler에서 TradeLog/TradeCondition 저장 로직을 제거하고, 대신 ExecutedOrder/ExecutedIndicator를 중심으로 체결 기록을 재구성하려는 중이다.
+
+사용자는 EntryTradeScheduler에서 주문 실행 시 다음 순서를 따르기를 원한다: 1) 실행 전 stopLoss 유효성 검사, 2) 없으면 오류 처리, 3) 주문이 성공했는지 확인, 4) 성공 시 TP 유효성 확인, 5) TP가 없으면 SL만, 있으면 TP/SL 모두 거래소에 등록.
+
+사용자는 체결된 주문(ExecutedOrder)에 사용자가 주문 직전 확인했던 시장가와 실제 체결된 가격을 모두 저장하길 원한다.
+
+사용자는 ExchangeService의 placeMarketOrder 메서드를 stopLossPrice와 takeProfitPrice를 인자로 받는 공통 시그니처로 확장하고, 거래소별 내부 구현은 각 방식에 맞게 처리하길 원한다.
+
+사용자는 ExchangeService 구현체들의 placeMarketOrder 메서드에서 TP/SL 등록 성공 여부를 판단하여 OrderResult에 tpSlSuccess 필드를 포함시키고, ExecutedOrder에도 이를 반영하길 원한다.
+
+사용자는 OrderResult에 주문 실행부터 TP/SL 등록까지 걸린 실제 시간을 초 단위로 포함시키길 원한다.
+
+사용자는 EntryTradeScheduler에서 주문 실행 후 TP/SL은 별도 placeStopLossOrder, placeTakeProfitOrder로 호출하고, 실패 시 ExecutedOrder에 tpSlRegistered = false 등을 기록할 수 있도록 구성함.
+
+사용자는 ExchangeService의 placeStopLossOrder, placeTakeProfitOrder 메서드의 반환값을 boolean으로 설정하여 TP/SL 등록 성공 여부를 판단하길 원한다.
+
+사용자는 ExchangeService의 placeStopLossOrder, placeTakeProfitOrder 메서드 시그니처를 수량을 포함한 형태로 변경하길 원함.
+
+사용자는 GlobalExceptionHandler에서 처리된 예외들을 DB에 저장하길 원함.
+
+사용자는 예외 알림은 카카오톡 연동 대신 나중에 앱 푸시로 처리하길 원함.
+
+사용자는 잔고 캐시는 1분마다 한 번 조회하는 방식으로 구성하길 원함.
+
+사용자는 EntryTradeScheduler는 진입 주문만 담당하는 것으로 구성하고 있음.
+
+사용자는 ExitTradeScheduler를 새로 만들 계획이며, 여기서 StopLoss와 조건 기반 exit를 함께 처리할 예정임. StopLoss는 대부분 주문 시점에 걸려 있지만, ExitTradeScheduler에서도 한 번 더 체크하는 방식으로 구성하려고 함.
+
+사용자는 ExitTradeScheduler 구현 시 EntryTradeScheduler와 같은 방향으로, 동일한 흐름과 책임 분리 방식으로 함수 하나하나를 만들어주길 원함.
+
+사용자는 Bybit 거래소 연동을 위해 /v5/order/create API를 사용하며, 서명 계산 시 buildSignedRequest 메서드에서 timestamp + apiKey + recvWindow + bodyJson 순으로 서명 문자열을 구성하고 있다.
+
+사용자는 프론트엔드에서 VWBB 지표를 `calculateVWBB` 함수로 계산하고 있으며, 이는 VWMA(볼륨 가중 이동평균)와 표준편차를 기반으로 upper/lower 밴드를 구하는 방식이다. 이를 백엔드 IndicatorUtil.java와 맞추길 원한다.
+
+사용자는 VWBB 계산 시 기존 볼밴 대신 '현재 가격에 가중을 주는 가중 이동평균'과 '가중 표준편차' 방식으로 반응성을 높인 커스텀 지표를 사용하고자 한다.
+
+사용자는 VWBB 계산에서 가격 변화에 민감한 반응성을 위해 프론트엔드에서 가중 이동평균(WMA)과 가중 표준편차를 사용하고 있음. 백엔드도 동일한 방식으로 맞출 예정.
+
+사용자는 VWBB 계산 시 거래량의 영향을 줄이기 위해 '비율 조정' 방식(예: volume * 0.5)으로 가중치를 조정하길 원함.
+
+사용자는 VWBB 계산 시 프론트엔드와 동일한 방식으로 백엔드도 맞추길 원함. 즉, 현재 가격에 가중을 주는 방식(가중 이동평균 + 가중 표준편차 + 거래량 비중 조정)으로 VWBB를 계산하도록 백엔드를 맞출 예정.
+
+사용자는 백엔드에서 VWBB 계산 시 마지막 캔들은 제외하고 계산하길 원함.
+
+사용자는 indicator_condition 테이블의 direction 필드를 제거하고, direction 값을 position 테이블로 옮겨 Position 단위로 방향을 관리하려고 한다.
+
+사용자는 자동매매 시스템에서 TradeScheduler의 checkEntryPosition 메서드 내 조건 검사를 기반으로 주문 실행 및 중복 방지, 조건 만족 여부 판단을 하고 있으며, 소스 구조가 일부 변경되었음을 공유함.
+
+사용자는 리팩토링 전 상태의 코드를 GitHub 저장소 https://github.com/jayhyub7/auto-trader.git 에 백업해두었음.
+
+앞으로 타입스크립트에서 Props 인터페이스에 새로운 속성을 추가할 때는 구조 분해(`React.FC<Props>`) 부분에도 함께 추가하는 것을 세트로 안내해야 함.
+
+사용자는 `positionManager.ts` 파일을 `positionManagerService.ts`로 변경할 예정이며, 각 조건마다 설정하던 Direction(롱/숏) 값을 Position 단위로 설정하도록 구조를 변경하길 원함.
+
+Position 타입에 direction은 필수값이며, 테이블에서 조건 삭제 옆에 있는 사용여부는 조건마다 개별로 설정할 수 있도록 변경해야 함.
+
+앞으로 소스코드의 일부를 제공할 때는 항상 맨 윗줄에 주석으로 파일명과 대략적인 라인 정보를 포함해야 함.
+
+Plans to use Stable Diffusion WebUI and Civitai models (e.g., Toonyou, Anything v5) to generate full-body anime-style girl illustrations. They have an RTX 3080 (12GB VRAM) system and plan to install and run the setup tomorrow.
+
+사용자는 환율 관련 기능을 `com.auto.trader.rate` 패키지에 구성하길 원함.
+
+Plans to create `TradeScheduler.java` in the `com.auto.trader.trade` package to implement trade-related scheduling tasks.
+
+사용자는 캔들 조회용 API 키 관리를 위한 엔티티 이름을 'CandleKey' 대신 'AdminKey'로 사용하길 원함.
+
+사용자는 AdminKey 엔티티를 com.auto.trader.adminkey.entity 패키지에 생성하길 원함.
+
+사용자는 `savePositions` 함수에서 `IndicatorCondition` 내의 `type`, `direction`, `conditionPhase` 값을 소문자로 변환해서 전송하도록 구성했다.
+
+사용자는 프론트는 그대로 유지한 채, 백엔드에서 바이낸스에서 캔들을 호출하여 VWBB, StochRSI, RSI 등의 지표를 계산하는 기능을 구현하려고 한다.
+
+사용자는 IndicatorUtil.java 및 관련 지표 계산 로직을 com.auto.trader.trade 패키지에 구성할 계획이다.
+
+사용자는 Java 백엔드에서 프론트엔드에서 사용 중인 calculateEMA, calculateSMA, calculateRSI, calculateStochRSI, calculateVWBB 계산 함수를 모두 Java로 구현하길 원한다.
+
+사용자는 IndicatorService에서 Binance 캔들을 불러와 모든 지표를 미리 계산한 후 저장해두는 방식으로 구성하길 원한다.
+
+사용자는 1초마다 새로운 캔들을 가져와 RSI, StochRSI 등 지표를 계산하여 메모리에 최신 상태로 유지하는 스케줄러를 만들고, TradeScheduler에서는 그 데이터를 가져다 쓰는 구조로 구성하려고 한다.
+
+사용자는 TradeScheduler에서 1초마다 모든 활성 포지션에 대해 1, 3, 5, 15분, 1시간, 4시간, 1일 봉의 RSI, StochRSI, VWBB 지표를 검사해 조건에 만족하면 매매를 실행하는 구조로 리팩토링할 계획이다.
+
+사용자는 IndicatorScheduler를 REST API 기반에서 WebSocket + 누적 방식으로 전환하여 동일한 지표 결과를 실시간으로 계산하길 원한다.
+
+사용자는 프론트엔드에서 잔고 표시 시 `total`과 `available`을 따로 표시하길 원함.
+
+Has already thoroughly tested the exchange API authentication and it is working successfully, so they do not want to make any further changes to that part.
+
+사용자는 바이낸스 주문 생성을 시장가 주문으로 먼저 구현하고 있으며, 나중에 다른 주문 유형(LIMIT, STOP 등)을 확장할 수 있도록 구조화하길 원함. 인증 관련 코드는 이미 테스트 완료 상태이므로 변경하지 않기를 원함.
+
+사용자는 BitcoinChart에 VWBB(Volume Weighted Bollinger Bands)를 추가하고자 한다.
+
+사용자는 포지션 조건 설정 화면에서 조건 유형을 '진입조건'과 '종료조건'으로 구분해서 구성하길 원한다.
+
+사용자는 포지션 조건 저장 기능을 완성하기 위해 백엔드에 관련 테이블 및 API 구현을 진행 중이며, 관련 백엔드 소스(zip 파일)를 업로드하여 전체 반영을 요청함.
+
+Prefers concise handling over speed when using UUIDs as entity identifiers, and wants UUIDs to be handled as String type.
+
+사용자는 프론트엔드에서 포지션을 임시로 추가할 때 UUID를 사용하고, 저장 후 서버에서 반환된 DB의 실제 PK로 대체하는 방식으로 변경하길 원함.
+
+앞으로 사용자가 요청한 코드 수정 작업 전에 변경 방향을 먼저 확인하고 물어봐야 함.
+
+사용자는 PositionOpen.tsx에서 포지션 관리에서 사용여부가 true인 포지션을 리스트로 나열하고, 종료유형에 따라 종료조건 UI를, 금액유형에 따라 금액 UI를 동적으로 변경하는 화면을 구성할 계획이다.
+
+사용자는 포지션 실행 기능(실행, 시뮬레이션, 취소 버튼)을 각 포지션 카드에 추가하길 원하며, 취소는 실행 또는 시뮬레이션 중일 때만 활성화되도록 제한하길 원한다. 포지션 상태는 대기, 실행 중, 종료됨 등으로 표시되길 원하며, '종료됨'은 별도로 확인할 예정이다. 로그 및 저장 기능은 다른 화면에서 구현할 계획이다.
+
+사용자는 PositionOpen.tsx에서 포지션을 임시로 추가할 때 UUID를 사용하고, 저장 후 서버에서 반환된 DB의 실제 PK로 대체하는 방식으로 변경하길 원함. 또한 포지션 실행 기능(실행, 시뮬레이션, 취소 버튼)을 각 포지션 카드에 추가하길 원하며, 취소는 실행 또는 시뮬레이션 중일 때만 활성화되도록 제한하길 원함. 포지션 상태는 대기, 실행 중, 종료됨 등으로 표시되길 원하며, '종료됨'은 별도로 확인할 예정. 로그 및 저장 기능은 다른 화면에서 구현할 계획이다.
+
+사용자는 포지션 오픈 정보를 저장할 때 saveAll이 아닌 개별 save 방식을 원함.
+
+사용자는 포지션 오픈 정보 저장은 단일 저장 방식으로 처리하길 원하며, 수정 기능은 필요하지만 삭제 기능은 불필요하다고 판단함. 삭제는 포지션 관리에서 포지션 자체가 삭제될 때 함께 처리되도록 할 예정.
+
+사용자는 포지션, 포지션오픈, 조건 엔티티를 조인하여 상세 조회 API를 구성하고 있으며, 각 enum은 JsonValue 기반 소문자 문자열 직렬화를 원함.
+
+사용자는 캔들 차트에 1분, 3분, 5분, 15분봉 버튼을 다른 거래소들과 비슷한 위치에 삽입하고, 이후 다양한 지표들을 순차적으로 추가해보고자 한다.
+
+사용자는 lightweight-charts 최신 버전(5.0.6)에서 `chart.addSeries(CandlestickSeries)`를 사용해 캔들차트를 성공적으로 렌더링함.
+
+사용자는 캔들 차트 데이터를 처음 로딩 시 500개 가져오고, 이후에는 1개씩만 추가로 가져오길 원한다.
+
+사용자는 캔들 차트 오른쪽에 지표 선택 버튼을 배치하고, 선택된 지표만 차트에 표시되도록 구현하길 원함. 사용할 지표는 최대 6개로, EMA, RSI, 스토캐스틱 RSI 등이 포함될 예정.
+
+사용자는 BitcoinChart를 메인 차트로 유지하면서, RSI 및 StochRSI는 하단 서브차트로 분리하여 각각 별도의 컴포넌트로 렌더링하길 원하며, 필요한 데이터는 BitcoinChart에서 하위 컴포넌트로 전달하는 방식으로 구현하길 원한다.
+
+사용자는 BitcoinChart 컴포넌트에서 지표 데이터를 계산하고, SubChart에서는 계산된 데이터를 받아 시각화만 하는 구조(권장 구조)로 구현하기로 결정했다.
+
+Is using `lightweight-charts@5.0.6`.
+
+사용자는 lightweight-charts@5.0.6을 사용 중이며, 해당 버전에 맞는 차트 시리즈 생성 방식(chart.addSeries(LineSeries))을 사용해야 함.
+
+Is using lightweight-charts@5.0.6, which does not have addLineSeries. Instead, series should be added using addSeries(LineSeries).
+
+Is using lightweight-charts version 5.0.6 and wants all chart timestamps (main and subcharts) displayed in Korean Standard Time (KST, UTC+9).
+
+Is using version 4 of lightweight-charts. The code should be written to be compatible with version 4, not the latest version.
+
+Is currently using lightweight-charts version 4.
+
+사용자는 lightweight-charts 기반 BitcoinChart에서 분봉 변경 및 지표 토글 기능을 안정적으로 작동시키기 위해 차트 제거 및 갱신 시 chartRef와 setInterval 처리 방식에 주의하고 있음. 최신 정상 작동 코드 기준으로 차트는 useEffect 내에서 createChart 후 tickMarkFormatter 설정, 데이터 fetch 후 시리즈에 setData, 지표들은 별도 useEffect로 처리하고 있음.
+
+사용자는 현재 StochRSI 계산 및 시각화 기능 수정 중이며, 이 과정에서 오류가 발생하고 있음.
+
+사용자는 포지션 이름, 조건, 사용 여부를 포함한 포지션 행을 동적으로 추가할 수 있도록 구성된 테이블 UI를 구성하고 있으며, 조건은 RSI 또는 StochRSI 등 선택된 지표에 따라 다르게 추가되도록 구현하고자 한다.
+
+사용자는 PositionManager 컴포넌트에서 조건 추가 시 LONG/SHORT 방향 일관성, 지표 중복 여부(분봉 단위 포함)를 검사하며, 조건 설정은 팝업 형태로 나타난다. 지표 조건 저장 시 유효성 검사를 수행하고, 포지션/조건 삭제 및 저장 기능도 함께 제공된다. 이 구성은 기준 상태로 기억해야 한다.
+
+사용자는 PositionManager 컴포넌트 소스 기준을 명확히 정했고, 이 기준을 바탕으로 기능을 하나씩 추가하길 원함.
+
+사용자는 PositionManager 테이블에서 조건별 삭제 버튼을 각 조건 행마다 추가하고, 조건 없는 경우에도 일관되게 UI가 유지되길 원한다.
+
+사용자는 Position 및 IndicatorCondition 정보를 DB에 저장하는 백엔드 API 구현을 요청함.
+
+Prefers placing files for API communication in the `/src/service/` folder in frontend projects, and finds it more convenient to define types within the same file. The current company project also follows this structure.
+
+Prefers to place frontend API communication files in the `/src/service/` folder and to define types within the same file. The current company project also follows this structure.
+
+Has named their GitHub repository 'auto-trader'.
+
+사용자는 인증키 저장 후 거래소와 연동하여 잔고를 확인함으로써 유효성 검사를 하길 원한다.
+
+사용자는 거래소별 인증키 유효성 검사를 인터페이스 기반 구조로 구현하길 원한다.
+
+사용자는 거래소 관련 코드를 com.auto.trader.exchange 패키지에 구성하길 원한다.
+
+사용자는 ApiKey 저장 시 거래소 연동 유효성 검사를 수행하도록 ApiKeyService에 통합하길 원함.
+
+사용자는 인증키 관리 화면에 인증 여부 표시를 추가하고, 인증 실패 시 해당 상태를 false로 저장하길 원함.
+
+사용자는 인증키 저장 시 유효성 검사에 실패하더라도 저장되도록 하고, 인증 여부를 나타내는 `validated` 필드를 false로 설정하길 원함.
+
+사용자는 잔고 확인 화면 파일명을 `CurrentBalance.tsx`로 하고, 관련 API 엔드포인트는 `/current-balance`로 사용할 계획이다.
+
+사용자는 현재 잔고 화면에서 업데이트 날짜는 제거하고, 대신 10초마다 잔고 API(`/current-balance`)를 자동 호출하여 최신 데이터를 유지하길 원한다.
+
+사용자는 거래소 잔고 연동을 바이낸스부터 구현하길 원한다.
+
+사용자는 비트겟과 바이비트 거래소 잔고 연동도 바이낸스와 동일한 방식으로 구현하길 원한다.
+
+사용자는 실 API 연동 테스트, 환율 적용, 통합 테스트, 관리자 화면 개선 등을 이후에 진행할 계획이다.
+
+사용자는 앞으로 모든 응답을 한글로 받기를 원합니다.
+
+사용자는 Spring Boot 프로젝트를 Gradle로 변환해 최신 구성으로 리팩토링하길 원하며, MySQL이 아닌 Oracle 19c를 사용하고 Google 로그인만 사용할 계획이다.
+
+Plans to name their Spring Boot project 'AutoTrader'.
+
+사용자는 AutoTrader 프로젝트의 프론트엔드를 React로 개발할 예정이며, 백엔드는 이에 호환되도록 구성해야 한다.
+
+Plans to use Java 21 (Temurin 21.0.3+9 LTS) and uses Oracle Database 19c Enterprise Edition. Their primary backend stack includes Spring Boot, JPA, Google login, devtools, and Lombok. They plan to develop the frontend using React in the future.
+
+Has decided to use PostgreSQL 16 instead of Oracle.
+
+사용자는 AutoTrader 프로젝트의 프론트엔드를 이제 React로 개발하려고 한다.
+
+사용자는 User 엔티티에서 이름(name)은 변경하지 않고, 나중에 닉네임(nickName)을 추가해 관리할 계획이다.
+
+사용자는 인증키 관리 화면을 1개로 구성하여 입력, 수정, 삭제 기능을 모두 처리하길 원한다.

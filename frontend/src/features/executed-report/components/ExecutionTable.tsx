@@ -1,10 +1,31 @@
-import React from 'react';
+// 📁 src/components/ExecutionTable.tsx
+
+import React, { useEffect, useState } from "react";
+import {
+  getExecutedReports,
+  ExecutedReportResponseDto,
+} from "@/features/executed-report/services/ExecutedReportService";
 
 const ExecutionTable = () => {
+  const [data, setData] = useState<ExecutedReportResponseDto[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getExecutedReports()
+      .then(setData)
+      .catch((err) => {
+        console.error("실행 리포트 로딩 실패:", err);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-white">불러오는 중...</div>;
+
   return (
-    <table className="min-w-full bg-white text-sm border">
-      <thead>
-        <tr className="bg-gray-100">
+    <table className="min-w-full text-sm border text-white bg-gray-800">
+      <thead className="bg-gray-700">
+        <tr>
+          <th className="border px-2 py-1">#</th>
           <th className="border px-2 py-1">체결일시</th>
           <th className="border px-2 py-1">포지션명</th>
           <th className="border px-2 py-1">방향</th>
@@ -15,17 +36,32 @@ const ExecutionTable = () => {
         </tr>
       </thead>
       <tbody>
-        <tr>
-          <td className="border px-2 py-1">2025-05-30 09:12:23</td>
-          <td className="border px-2 py-1">스탑헌팅롱</td>
-          <td className="border px-2 py-1">LONG</td>
-          <td className="border px-2 py-1">68,320</td>
-          <td className="border px-2 py-1 text-green-600">+0.71%</td>
-          <td className="border px-2 py-1">RSI > 70, VWBB < 하단</td>
-          <td className="border px-2 py-1 whitespace-pre">조건 평가 통과
-RSI 72 > 70
-VWBB 26.1 < 27.0</td>
-        </tr>
+        {data.map((item, i) => (
+          <tr key={i}>
+            <td className="border px-2 py-1">{i + 1}</td>
+            <td className="border px-2 py-1">{item.executedAt}</td>
+            <td className="border px-2 py-1">{item.positionName}</td>
+            <td className="border px-2 py-1">{item.direction}</td>
+            <td className="border px-2 py-1">
+              {item.executedPrice.toLocaleString()}
+            </td>
+            <td
+              className={`border px-2 py-1 ${
+                item.profitRate >= 0 ? "text-green-400" : "text-red-400"
+              }`}
+            >
+              {item.profitRate.toFixed(2)}%
+            </td>
+            <td className="border px-2 py-1">
+              {item.conditions
+                .map((c) => `${c.indicator} ${c.operator} ${c.value}`)
+                .join(", ")}
+            </td>
+            <td className="border px-2 py-1 whitespace-pre-line">
+              {item.executionLog}
+            </td>
+          </tr>
+        ))}
       </tbody>
     </table>
   );
