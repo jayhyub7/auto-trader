@@ -216,3 +216,25 @@ export function calculateVWAP(candles: Candle[]): IndicatorPoint[] {
 
   return result;
 }
+
+export function calculateSMAFromCandles(
+  data: Candle[],
+  period: number
+): IndicatorPoint[] {
+  const result: IndicatorPoint[] = [];
+
+  for (let i = 0; i < data.length; i++) {
+    if (i < period - 1) {
+      result.push({ time: data[i].time, value: null });
+      continue;
+    }
+
+    const window = data.slice(i - period + 1, i + 1);
+    const sum = window.reduce((acc, c) => acc + c.close, 0);
+    const avg = sum / period;
+
+    result.push({ time: data[i].time, value: avg });
+  }
+
+  return result;
+}

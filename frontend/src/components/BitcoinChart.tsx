@@ -1,4 +1,4 @@
-// ✅ BitcoinChart.tsx (VWBB/VWAP 유지 + RSI/StochRSI 사라짐 버그 완전 해결)
+// ✅ BitcoinChart.tsx (EMA 입력창 디자인 수정: 버튼 아래에 absolute 위치로 띄움)
 import React, { useEffect, useRef, useState } from "react";
 import { createChart } from "lightweight-charts";
 import {
@@ -6,9 +6,12 @@ import {
   calculateStochRSI,
   calculateVWBB,
   calculateVWAP,
+  calculateEMA,
+  calculateSMAFromCandles,
 } from "@/shared/util/indicatorUtil";
 import SubChart from "./SubChart";
 import { Timeframe, TIMEFRAME_LABELS } from "@/constants/timeframe";
+import Cookies from "js-cookie";
 
 const API_URL = "https://fapi.binance.com/fapi/v1/klines";
 const SOCKET_URL = "wss://fstream.binance.com/ws/btcusdt@kline_";
@@ -26,6 +29,8 @@ const INTERVAL_MAP = {
   [Timeframe.ONE_MONTH]: "1M",
 };
 
+const EMA_COLORS = ["#facc15", "#ec4899", "#8b5cf6"];
+
 const BitcoinChart = () => {
   const [currentInterval, setCurrentInterval] = useState(DEFAULT_INTERVAL);
   const [indicators, setIndicators] = useState<string[]>([]);
@@ -33,7 +38,9 @@ const BitcoinChart = () => {
   const [rsiData, setRsiData] = useState<any[]>([]);
   const [stochRsiData, setStochRsiData] = useState<any[]>([]);
   const [mainTimeScale, setMainTimeScale] = useState<any>(null);
-
+  const [emaPeriods, setEmaPeriods] = useState<number[]>([]);
+  const [tempEmaValue, setTempEmaValue] = useState("7, 25, 99");
+  const [showEmaInput, setShowEmaInput] = useState(false);
   const chartRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const candleSeriesRef = useRef<any>(null);
@@ -44,6 +51,38 @@ const BitcoinChart = () => {
   const vwbbLowerRef = useRef<any>(null);
   const vwbbBasisRef = useRef<any>(null);
   const vwapSeriesRef = useRef<any>(null);
+  const emaRefs = useRef<any[]>([]);
+
+  const [smaPeriods, setSmaPeriods] = useState<number[]>([]);
+  const [tempSmaValue, setTempSmaValue] = useState("50, 100, 200");
+  const [showSmaInput, setShowSmaInput] = useState(false);
+  const smaRefs = useRef<any[]>([]);
+
+  useEffect(() => {
+    const cookie = Cookies.get("emaPeriods");
+    if (cookie) {
+      try {
+        const parsed = JSON.parse(cookie);
+        setEmaPeriods(parsed);
+        setTempEmaValue(parsed.join(", ")); // ✅ 추가됨
+      } catch {}
+    } else {
+      setEmaPeriods([7, 25, 99]);
+      setTempEmaValue("7, 25, 99"); // ✅ 추가됨
+    }
+
+    const smaCookie = Cookies.get("smaPeriods");
+    if (smaCookie) {
+      try {
+        const parsed = JSON.parse(smaCookie);
+        setSmaPeriods(parsed);
+        setTempSmaValue(parsed.join(", "));
+      } catch {}
+    } else {
+      setSmaPeriods([50, 100, 200]);
+      setTempSmaValue("50, 100, 200");
+    }
+  }, []);
 
   const toggleIndicator = (name: string) => {
     setIndicators((prev) => {
@@ -101,6 +140,68 @@ const BitcoinChart = () => {
         (d) => typeof d.value === "number"
       );
       vwapSeriesRef.current.setData(vwap);
+    }
+
+    if (currentIndicators.includes("EMA")) {
+      if (emaRefs.current.length == 0) {
+        // 새 시리즈 생성
+        emaRefs.current = emaPeriods.map((period, idx) => {
+          const series = chartRef.current!.addLineSeries({
+            color: EMA_COLORS[idx] || "gray",
+            lineWidth: 1,
+          });
+          return series;
+        });
+      }
+      emaRefs.current.forEach((series, idx) => {
+        const period = emaPeriods[idx];
+        if (!series || !period) return;
+
+        const ema = calculateEMA(base, period).filter(
+          (d) => typeof d.value === "number"
+        );
+        series.setData(ema);
+      });
+    } else {
+      // ✅ 꺼진 경우에만 제거
+      emaRefs.current.forEach((ref) => {
+        try {
+          if (ref && chartRef.current) {
+            chartRef.current.removeSeries(ref);
+          }
+        } catch {}
+      });
+      emaRefs.current = [];
+    }
+
+    if (currentIndicators.includes("SMA")) {
+      if (smaRefs.current.length === 0) {
+        smaRefs.current = smaPeriods.map((period, idx) => {
+          const series = chartRef.current!.addLineSeries({
+            color: EMA_COLORS[idx] || "gray",
+            lineWidth: 1,
+          });
+          return series;
+        });
+      }
+      smaRefs.current.forEach((series, idx) => {
+        const period = smaPeriods[idx];
+        if (!series || !period) return;
+
+        const sma = calculateSMAFromCandles(base, period).filter(
+          (d) => typeof d.value === "number"
+        );
+        series.setData(sma);
+      });
+    } else {
+      smaRefs.current.forEach((ref) => {
+        try {
+          if (ref && chartRef.current) {
+            chartRef.current.removeSeries(ref);
+          }
+        } catch {}
+      });
+      smaRefs.current = [];
     }
 
     setRsiData(currentIndicators.includes("RSI") ? calculateRSI(base) : []);
@@ -210,12 +311,13 @@ const BitcoinChart = () => {
       vwbbLowerRef.current = null;
       vwbbBasisRef.current = null;
       vwapSeriesRef.current = null;
+      emaRefs.current = [];
     };
   }, [currentInterval]);
 
   useEffect(() => {
     updateIndicators();
-  }, [indicators]);
+  }, [indicators, emaPeriods]);
 
   return (
     <div className="relative p-4">
@@ -248,7 +350,115 @@ const BitcoinChart = () => {
             {name}
           </button>
         ))}
+        <button
+          key={"EMA"}
+          onClick={() => {
+            toggleIndicator("EMA");
+            setShowEmaInput((prev) => !prev);
+          }}
+          className={`px-2 py-1 text-xs rounded font-semibold shadow ${
+            indicators.includes("EMA")
+              ? "bg-green-500 text-white"
+              : "bg-gray-600 text-gray-300"
+          }`}
+        >
+          EMA
+        </button>
+        <button
+          key={"SMA"}
+          onClick={() => {
+            toggleIndicator("SMA");
+            setShowSmaInput((prev) => !prev);
+          }}
+          className={`px-2 py-1 text-xs rounded font-semibold shadow ${
+            indicators.includes("SMA")
+              ? "bg-green-500 text-white"
+              : "bg-gray-600 text-gray-300"
+          }`}
+        >
+          SMA
+        </button>
       </div>
+      {showEmaInput && indicators.includes("EMA") && (
+        <div className="absolute top-12 right-2 bg-slate-800 px-3 py-2 rounded shadow z-10 text-sm w-48">
+          <label className="block text-slate-300 mb-1">EMA Periods:</label>
+          <input
+            className="bg-slate-700 text-white px-2 py-1 rounded w-full mb-2"
+            value={tempEmaValue}
+            onChange={(e) => setTempEmaValue(e.target.value)}
+          />
+          <button
+            className="w-full bg-amber-500 text-black rounded py-1 font-semibold"
+            onClick={() => {
+              const parts = tempEmaValue
+                .split(",")
+                .map((v) => parseInt(v.trim(), 10))
+                .filter((v) => !isNaN(v));
+
+              setEmaPeriods(parts);
+              Cookies.set("emaPeriods", JSON.stringify(parts), { expires: 30 });
+
+              // EMA가 비활성 상태였다면 강제 활성화
+              if (!indicators.includes("EMA")) {
+                const next = [...indicators, "EMA"];
+                setIndicators(next);
+                indicatorsRef.current = next;
+
+                // ✅ indicators 비동기 기다리지 않고 직접 반영
+                setTimeout(() => {
+                  updateIndicators(); // ⬅ 강제 호출
+                }, 0);
+              } else {
+                // ✅ 이미 켜져 있던 경우에도 반영 필요
+                setTimeout(() => {
+                  updateIndicators();
+                }, 0);
+              }
+
+              // 입력창 닫기
+              setShowEmaInput(false);
+            }}
+          >
+            적용
+          </button>
+        </div>
+      )}
+      {showSmaInput && indicators.includes("SMA") && (
+        <div className="absolute top-[88px] right-2 bg-slate-800 px-3 py-2 rounded shadow z-10 text-sm w-48">
+          <label className="block text-slate-300 mb-1">SMA Periods:</label>
+          <input
+            className="bg-slate-700 text-white px-2 py-1 rounded w-full mb-2"
+            value={tempSmaValue}
+            onChange={(e) => setTempSmaValue(e.target.value)}
+          />
+          <button
+            className="w-full bg-amber-500 text-black rounded py-1 font-semibold"
+            onClick={() => {
+              const parts = tempSmaValue
+                .split(",")
+                .map((v) => parseInt(v.trim(), 10))
+                .filter((v) => !isNaN(v));
+
+              setSmaPeriods(parts);
+              Cookies.set("smaPeriods", JSON.stringify(parts), { expires: 30 });
+
+              if (!indicators.includes("SMA")) {
+                const next = [...indicators, "SMA"];
+                setIndicators(next);
+                indicatorsRef.current = next;
+                setTimeout(() => updateIndicators(), 0);
+              } else {
+                setTimeout(() => updateIndicators(), 0);
+              }
+
+              setShowSmaInput(false);
+            }}
+          >
+            적용
+          </button>
+        </div>
+      )}
+
       <div
         ref={containerRef}
         className="w-full h-[400px] border border-slate-600 rounded-md"
