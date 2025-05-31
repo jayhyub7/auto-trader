@@ -1,12 +1,10 @@
+// ✅ BitcoinChart.tsx (EMA/SMA 제거 버전)
 import React, { useEffect, useRef, useState } from "react";
 import { createChart } from "lightweight-charts";
 import {
-  calculateEMA,
-  calculateSMA,
   calculateRSI,
   calculateStochRSI,
   calculateVWBB,
-  formatTimestampKST,
 } from "@/shared/util/indicatorUtil";
 import SubChart from "./SubChart";
 import { Timeframe, TIMEFRAME_LABELS } from "@/constants/timeframe";
@@ -34,38 +32,14 @@ const BitcoinChart = () => {
   const candlesRef = useRef<any[]>([]);
   const socketRef = useRef<WebSocket | null>(null);
 
-  const emaSeriesRef = useRef<any>(null);
-  const smaSeriesRefs = useRef<Record<number, any>>({});
   const vwbbUpperRef = useRef<any>(null);
   const vwbbLowerRef = useRef<any>(null);
   const vwbbBasisRef = useRef<any>(null);
 
   const toggleIndicator = (name: string) => {
-    setIndicators((prev) => {
-      const next = prev.includes(name)
-        ? prev.filter((i) => i !== name)
-        : [...prev, name];
-
-      if (!prev.includes(name)) return next;
-
-      if (name === "EMA") {
-        emaSeriesRef.current?.setData([]);
-        emaSeriesRef.current = null;
-      }
-      if (name === "SMA") {
-        Object.values(smaSeriesRefs.current).forEach((s) => s?.setData([]));
-        smaSeriesRefs.current = {};
-      }
-      if (name === "VWBB") {
-        vwbbUpperRef.current?.setData([]);
-        vwbbLowerRef.current?.setData([]);
-        vwbbBasisRef.current?.setData([]);
-        vwbbUpperRef.current = null;
-        vwbbLowerRef.current = null;
-        vwbbBasisRef.current = null;
-      }
-      return next;
-    });
+    setIndicators((prev) =>
+      prev.includes(name) ? prev.filter((i) => i !== name) : [...prev, name]
+    );
   };
 
   useEffect(() => {
@@ -107,7 +81,6 @@ const BitcoinChart = () => {
 
     const fetchInitialCandles = async () => {
       const interval = INTERVAL_MAP[currentInterval];
-
       const intervalMs = {
         "1m": 60_000,
         "3m": 3 * 60_000,
@@ -118,8 +91,8 @@ const BitcoinChart = () => {
       }[interval];
 
       const now = Date.now();
-      const endTime = now - (now % intervalMs); // ✅ 분봉 기준 정각
-      const startTime = endTime - intervalMs * 500; // ✅ 분봉당 500개
+      const endTime = now - (now % intervalMs);
+      const startTime = endTime - intervalMs * 500;
 
       const res = await fetch(
         `${API_URL}?symbol=BTCUSDT&interval=${interval}&startTime=${startTime}&endTime=${endTime}`
@@ -148,37 +121,8 @@ const BitcoinChart = () => {
         return;
       const base = candlesRef.current.slice();
 
-      if (indicators.includes("EMA")) {
-        if (!emaSeriesRef.current) {
-          emaSeriesRef.current = chartRef.current.addLineSeries({
-            color: "lime",
-            lineWidth: 2,
-          });
-        }
-        const ema = calculateEMA(base).filter(
-          (d) => typeof d.value === "number"
-        );
-        emaSeriesRef.current.setData(ema);
-      }
-
-      if (indicators.includes("SMA")) {
-        [20, 60, 100].forEach((p) => {
-          if (!smaSeriesRefs.current[p]) {
-            smaSeriesRefs.current[p] = chartRef.current.addLineSeries({
-              color: "#60a5fa",
-              lineWidth: 1,
-            });
-          }
-          const sma = calculateSMA(base, p).filter(
-            (d) => typeof d.value === "number"
-          );
-          smaSeriesRefs.current[p].setData(sma);
-        });
-      }
-
       if (indicators.includes("VWBB")) {
         const vwbb = calculateVWBB(base);
-
         if (!vwbbUpperRef.current) {
           vwbbUpperRef.current = chartRef.current.addLineSeries({
             color: "red",
@@ -199,14 +143,25 @@ const BitcoinChart = () => {
         vwbbBasisRef.current.setData(
           vwbb.basis.filter((d) => typeof d.value === "number")
         );
+      } else {
+        vwbbUpperRef.current?.setData([]);
+        vwbbLowerRef.current?.setData([]);
+        vwbbBasisRef.current?.setData([]);
+        vwbbUpperRef.current = null;
+        vwbbLowerRef.current = null;
+        vwbbBasisRef.current = null;
       }
 
       if (indicators.includes("RSI")) {
         setRsiData(calculateRSI(base));
+      } else {
+        setRsiData([]);
       }
 
       if (indicators.includes("STOCH_RSI")) {
         setStochRsiData(calculateStochRSI(base));
+      } else {
+        setStochRsiData([]);
       }
     };
 
@@ -226,14 +181,10 @@ const BitcoinChart = () => {
         };
 
         const last = candlesRef.current.at(-1);
-
         if (!last) return;
 
-        // 새로운 캔들이 생성되었고, 이전 캔들이 마감됨
         if (newCandle.time > last.time && last.final) {
           candlesRef.current.push(newCandle);
-
-          // 현재 캔들 진행중이면 현재캔들에 덮어쓰기
         } else if (newCandle.time === last.time) {
           candlesRef.current[candlesRef.current.length - 1] = newCandle;
         }
@@ -251,10 +202,7 @@ const BitcoinChart = () => {
     connectSocket();
 
     return () => {
-      if (
-        socketRef.current &&
-        socketRef.current.readyState === WebSocket.OPEN
-      ) {
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
         socketRef.current.close();
       }
       socketRef.current = null;
@@ -265,22 +213,14 @@ const BitcoinChart = () => {
         console.warn("chart.remove() error", e);
       }
       chartRef.current = null;
-
       candleSeriesRef.current = null;
-      emaSeriesRef.current = null;
-      smaSeriesRefs.current = {};
       vwbbUpperRef.current = null;
       vwbbLowerRef.current = null;
       vwbbBasisRef.current = null;
     };
   }, [currentInterval, indicators]);
 
-  let safeTimeScale = null;
-  try {
-    safeTimeScale = chartRef.current?.timeScale?.();
-  } catch (e) {
-    console.warn("⚠ 차트가 제거된 상태에서 timeScale 접근 시도됨");
-  }
+  const safeTimeScale = chartRef.current?.timeScale?.();
 
   return (
     <div className="relative p-4">
@@ -300,7 +240,7 @@ const BitcoinChart = () => {
         ))}
       </div>
       <div className="absolute top-2 right-2 flex gap-2 z-10">
-        {["EMA", "SMA", "RSI", "STOCH_RSI", "VWBB"].map((name) => (
+        {["RSI", "STOCH_RSI", "VWBB"].map((name) => (
           <button
             key={name}
             onClick={() => toggleIndicator(name)}
